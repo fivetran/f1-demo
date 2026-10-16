@@ -1,0 +1,5 @@
+{
+  "manifest_path": "manifest.full.json",
+  "cache_dir": "../../.cache/sources",
+  "refresh": "false"
+}

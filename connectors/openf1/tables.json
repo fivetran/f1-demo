@@ -1,0 +1,341 @@
+[
+  {
+    "table": "car_data",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "date"
+    ],
+    "columns": {
+      "brake": "LONG",
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "drs": "LONG",
+      "meeting_key": "LONG",
+      "n_gear": "LONG",
+      "rpm": "LONG",
+      "session_key": "LONG",
+      "speed": "LONG",
+      "throttle": "LONG"
+    }
+  },
+  {
+    "table": "championship_drivers",
+    "primary_key": [
+      "session_key",
+      "driver_number"
+    ],
+    "columns": {
+      "driver_number": "LONG",
+      "meeting_key": "LONG",
+      "points_current": "DOUBLE",
+      "points_start": "DOUBLE",
+      "position_current": "LONG",
+      "position_start": "LONG",
+      "session_key": "LONG"
+    }
+  },
+  {
+    "table": "championship_teams",
+    "primary_key": [
+      "session_key",
+      "team_name"
+    ],
+    "columns": {
+      "meeting_key": "LONG",
+      "points_current": "DOUBLE",
+      "points_start": "DOUBLE",
+      "position_current": "LONG",
+      "position_start": "LONG",
+      "session_key": "LONG",
+      "team_name": "STRING"
+    }
+  },
+  {
+    "table": "drivers",
+    "primary_key": [
+      "session_key",
+      "driver_number"
+    ],
+    "columns": {
+      "broadcast_name": "STRING",
+      "country_code": "STRING",
+      "driver_number": "LONG",
+      "first_name": "STRING",
+      "full_name": "STRING",
+      "headshot_url": "STRING",
+      "last_name": "STRING",
+      "meeting_key": "LONG",
+      "name_acronym": "STRING",
+      "session_key": "LONG",
+      "team_colour": "STRING",
+      "team_name": "STRING"
+    }
+  },
+  {
+    "table": "intervals",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "date"
+    ],
+    "columns": {
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "gap_to_leader": "STRING",
+      "interval": "STRING",
+      "meeting_key": "LONG",
+      "session_key": "LONG"
+    }
+  },
+  {
+    "table": "laps",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "lap_number"
+    ],
+    "columns": {
+      "date_start": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "duration_sector_1": "DOUBLE",
+      "duration_sector_2": "DOUBLE",
+      "duration_sector_3": "DOUBLE",
+      "i1_speed": "LONG",
+      "i2_speed": "LONG",
+      "is_pit_out_lap": "BOOLEAN",
+      "lap_duration": "DOUBLE",
+      "lap_number": "LONG",
+      "meeting_key": "LONG",
+      "segments_sector_1": "JSON",
+      "segments_sector_2": "JSON",
+      "segments_sector_3": "JSON",
+      "session_key": "LONG",
+      "st_speed": "LONG"
+    }
+  },
+  {
+    "table": "location",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "date"
+    ],
+    "columns": {
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "meeting_key": "LONG",
+      "session_key": "LONG",
+      "x": "LONG",
+      "y": "LONG",
+      "z": "LONG"
+    }
+  },
+  {
+    "table": "meetings",
+    "primary_key": [
+      "meeting_key"
+    ],
+    "columns": {
+      "circuit_key": "LONG",
+      "circuit_image": "STRING",
+      "circuit_info_url": "STRING",
+      "circuit_short_name": "STRING",
+      "circuit_type": "STRING",
+      "country_code": "STRING",
+      "country_flag": "STRING",
+      "country_key": "LONG",
+      "country_name": "STRING",
+      "date_end": "UTC_DATETIME",
+      "date_start": "UTC_DATETIME",
+      "gmt_offset": "STRING",
+      "is_cancelled": "BOOLEAN",
+      "location": "STRING",
+      "meeting_key": "LONG",
+      "meeting_name": "STRING",
+      "meeting_official_name": "STRING",
+      "year": "LONG"
+    }
+  },
+  {
+    "table": "overtakes",
+    "primary_key": [
+      "session_key",
+      "date",
+      "overtaking_driver_number",
+      "overtaken_driver_number"
+    ],
+    "columns": {
+      "date": "UTC_DATETIME",
+      "meeting_key": "LONG",
+      "overtaken_driver_number": "LONG",
+      "overtaking_driver_number": "LONG",
+      "position": "LONG",
+      "session_key": "LONG"
+    }
+  },
+  {
+    "table": "pit",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "date"
+    ],
+    "columns": {
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "lane_duration": "DOUBLE",
+      "lap_number": "LONG",
+      "meeting_key": "LONG",
+      "pit_duration": "DOUBLE",
+      "session_key": "LONG",
+      "stop_duration": "DOUBLE"
+    }
+  },
+  {
+    "table": "position",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "date"
+    ],
+    "columns": {
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "meeting_key": "LONG",
+      "position": "LONG",
+      "session_key": "LONG"
+    }
+  },
+  {
+    "table": "race_control",
+    "primary_key": [
+      "session_key",
+      "message_id"
+    ],
+    "columns": {
+      "category": "STRING",
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "flag": "STRING",
+      "lap_number": "LONG",
+      "meeting_key": "LONG",
+      "message": "STRING",
+      "qualifying_phase": "STRING",
+      "scope": "STRING",
+      "sector": "LONG",
+      "session_key": "LONG",
+      "message_id": "STRING"
+    }
+  },
+  {
+    "table": "sessions",
+    "primary_key": [
+      "session_key"
+    ],
+    "columns": {
+      "circuit_key": "LONG",
+      "circuit_short_name": "STRING",
+      "country_code": "STRING",
+      "country_key": "LONG",
+      "country_name": "STRING",
+      "date_end": "UTC_DATETIME",
+      "date_start": "UTC_DATETIME",
+      "gmt_offset": "STRING",
+      "is_cancelled": "BOOLEAN",
+      "location": "STRING",
+      "meeting_key": "LONG",
+      "session_key": "LONG",
+      "session_name": "STRING",
+      "session_type": "STRING",
+      "year": "LONG"
+    }
+  },
+  {
+    "table": "session_result",
+    "primary_key": [
+      "session_key",
+      "driver_number"
+    ],
+    "columns": {
+      "dnf": "BOOLEAN",
+      "dns": "BOOLEAN",
+      "dsq": "BOOLEAN",
+      "driver_number": "LONG",
+      "duration": "DOUBLE",
+      "gap_to_leader": "STRING",
+      "number_of_laps": "LONG",
+      "meeting_key": "LONG",
+      "position": "LONG",
+      "session_key": "LONG",
+      "points": "DOUBLE"
+    }
+  },
+  {
+    "table": "starting_grid",
+    "primary_key": [
+      "session_key",
+      "driver_number"
+    ],
+    "columns": {
+      "driver_number": "LONG",
+      "lap_duration": "DOUBLE",
+      "meeting_key": "LONG",
+      "position": "LONG",
+      "session_key": "LONG"
+    }
+  },
+  {
+    "table": "stints",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "stint_number"
+    ],
+    "columns": {
+      "compound": "STRING",
+      "driver_number": "LONG",
+      "lap_end": "LONG",
+      "lap_start": "LONG",
+      "meeting_key": "LONG",
+      "session_key": "LONG",
+      "stint_number": "LONG",
+      "tyre_age_at_start": "LONG"
+    }
+  },
+  {
+    "table": "team_radio",
+    "primary_key": [
+      "session_key",
+      "driver_number",
+      "date",
+      "recording_url"
+    ],
+    "columns": {
+      "date": "UTC_DATETIME",
+      "driver_number": "LONG",
+      "meeting_key": "LONG",
+      "recording_url": "STRING",
+      "session_key": "LONG"
+    }
+  },
+  {
+    "table": "weather",
+    "primary_key": [
+      "session_key",
+      "date"
+    ],
+    "columns": {
+      "air_temperature": "DOUBLE",
+      "date": "UTC_DATETIME",
+      "humidity": "DOUBLE",
+      "meeting_key": "LONG",
+      "pressure": "DOUBLE",
+      "rainfall": "LONG",
+      "session_key": "LONG",
+      "track_temperature": "DOUBLE",
+      "wind_direction": "LONG",
+      "wind_speed": "DOUBLE"
+    }
+  }
+]

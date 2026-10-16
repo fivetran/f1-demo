@@ -1,0 +1,4 @@
+fivetran-connector-sdk==2.12.1
+requests==2.34.2
+beautifulsoup4==4.15.0
+pypdf==6.19.0

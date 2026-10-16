@@ -1,0 +1,48 @@
+version: 2
+seeds:
+- name: agents_root
+  description: Publication input for AGENTS.ROOT; generated from the curated reader
+    catalog.
+  config:
+    column_types:
+      provider: STRING
+      key: STRING
+      content: STRING
+- name: agents_tables
+  description: Publication input for AGENTS.TABLES; generated from the curated reader
+    catalog.
+  config:
+    column_types:
+      table_name: STRING
+      description: STRING
+      primary_key: STRING
+      row_filter: STRING
+- name: agents_dimensions
+  description: Publication input for AGENTS.DIMENSIONS; generated from the curated
+    reader catalog.
+  config:
+    column_types:
+      table_name: STRING
+      column_name: STRING
+      data_type: STRING
+      description: STRING
+- name: agents_measures
+  description: Publication input for AGENTS.MEASURES; generated from the curated reader
+    catalog.
+  config:
+    column_types:
+      table_name: STRING
+      measure_name: STRING
+      sql_expression: STRING
+      description: STRING
+- name: agents_joins
+  description: Publication input for AGENTS.JOINS; generated from the curated reader
+    catalog.
+  config:
+    column_types:
+      join_name: STRING
+      from_table: STRING
+      to_table: STRING
+      join_type: STRING
+      sql_expression: STRING
+      description: STRING

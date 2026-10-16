@@ -1,0 +1,6 @@
+fivetran.png: https://cdn.prod.website-files.com/6130fa1501794ed4d11867ba/6a106678b524f3ffeb0e6bc5_Light%20Favicon.png
+dbt.svg: https://raw.githubusercontent.com/dbt-labs/docs.getdbt.com/current/website/static/img/dbt-logo.svg
+gemini-enterprise.svg: https://www.gstatic.com/bricks/image/www_gstatic_com_images_branding_productlogos_gemini_2026_ios_v1_192px_svg.svg
+BigQuery: https://services.google.com/fh/files/misc/core-products-icons.zip
+
+Keynote compatibility: dbt.png and gemini-enterprise.png are high-resolution transparent PNG renders of the original official SVGs. Slide 17 embeds the PNGs directly, avoiding SVG fallback images.

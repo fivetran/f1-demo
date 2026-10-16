@@ -1,0 +1,39 @@
+version: 2
+models:
+- name: document_search_input
+  description: Current active document passages prepared for search. Combines three typed document sources and splits
+    long blocks at whitespace, retaining all source characters. Glossary context includes neighboring blocks because
+    parser rows do not consistently align with complete definitions.
+  columns:
+  - name: passage_id
+  - name: embedding_text
+- name: document_passages_search
+  description: Incremental search corpus of transcript, regulation and glossary chunks. BigQuery maintains embedding
+    from embedding_text asynchronously and a hybrid IVF index combines semantic and lexical ranking. Source text,
+    questions and speaker labels are preserved; labels are not driver IDs. Regulations retain their edition and
+    unknown effective dates. Search results are relevant evidence, not an exhaustive analytical fact set.
+  columns:
+  - name: passage_id
+    description: SHA256 of document_type, document_id, source_position and chunk_index.
+  - name: document_type
+  - name: document_id
+  - name: source_position
+  - name: chunk_index
+    description: Zero-based chunk within the original source block.
+  - name: text
+    description: Complete original parser block, repeated for its chunks. Not an additive field.
+  - name: chunk_text
+    description: Contiguous part of text; ordered concatenation reconstructs the source block exactly.
+  - name: embedding_text
+    description: Bounded title, heading, speaker, question and glossary context plus complete chunk_text.
+  - name: content_hash
+    description: Change detector for all dbt-managed fields, including context; excludes the generated embedding.
+  - name: embedding
+    description: BigQuery generated STRUCT(result ARRAY<FLOAT64>, status STRING), using text-embedding-005 (768
+      dimensions). NULL means pending; status empty means success. Never directly written by dbt. Readiness is checked
+      separately because generation continues after dbt build finishes.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - passage_id

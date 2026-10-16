@@ -1,0 +1,10 @@
+f1_demo:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('F1_GCP_PROJECT') }}"
+      dataset: "{{ env_var('F1_DBT_DATASET', 'f1') }}"
+      location: "{{ env_var('F1_BQ_LOCATION', 'US') }}"
+      threads: 4

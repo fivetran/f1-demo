@@ -1,0 +1,497 @@
+version: 2
+models:
+- name: countries
+  description: One country identified by the OpenF1 country_key. Venue geography only; driver country_code is preserved
+    separately and may be null.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - country_key
+  columns:
+  - name: country_key
+    data_type: INT64
+  - name: country_code
+    data_type: STRING
+  - name: country_name
+    data_type: STRING
+  - name: country_flag
+    data_type: STRING
+- name: circuits
+  description: One source circuit. Image, information URL and locality use the latest calendar meeting;
+    conflicting identity attributes still fail the key test.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - circuit_key
+  columns:
+  - name: circuit_key
+    data_type: INT64
+  - name: country_key
+    data_type: INT64
+  - name: circuit_short_name
+    data_type: STRING
+  - name: circuit_type
+    data_type: STRING
+  - name: circuit_image
+    data_type: STRING
+  - name: circuit_info_url
+    data_type: STRING
+  - name: location
+    data_type: STRING
+- name: meetings
+  description: One meeting, including testing events. Geography is reached through circuit_key.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - meeting_key
+  columns:
+  - name: meeting_key
+    data_type: INT64
+  - name: circuit_key
+    data_type: INT64
+  - name: meeting_name
+    data_type: STRING
+  - name: meeting_official_name
+    data_type: STRING
+  - name: year
+    data_type: INT64
+  - name: date_start
+    data_type: TIMESTAMP
+  - name: date_end
+    data_type: TIMESTAMP
+  - name: gmt_offset
+    data_type: STRING
+  - name: is_cancelled
+    data_type: BOOL
+- name: sessions
+  description: One scheduled session. Meeting carries year and circuit; detailed data remains restricted to selected
+    Race sessions except grids.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - session_key
+  columns:
+  - name: session_key
+    data_type: INT64
+  - name: meeting_key
+    data_type: INT64
+  - name: session_name
+    data_type: STRING
+  - name: session_type
+    data_type: STRING
+  - name: date_start
+    data_type: TIMESTAMP
+  - name: date_end
+    data_type: TIMESTAMP
+  - name: gmt_offset
+    data_type: STRING
+  - name: is_cancelled
+    data_type: BOOL
+- name: drivers
+  description: One person identified by a source-name-derived ID through the computed season/number lookup. Conflicting
+    names fail the key test; the headshot is the latest non-null photo by session time. IDs are not a permanent cross-season identity guarantee.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - driver_id
+  columns:
+  - name: driver_id
+    data_type: STRING
+  - name: broadcast_name
+    data_type: STRING
+  - name: country_code
+    data_type: STRING
+  - name: first_name
+    data_type: STRING
+  - name: full_name
+    data_type: STRING
+  - name: headshot_url
+    data_type: STRING
+  - name: last_name
+    data_type: STRING
+  - name: name_acronym
+    data_type: STRING
+- name: teams
+  description: One source-name-derived team identity. Session-specific colours are in team_sessions; conflicting
+    names sharing an ID fail the key test.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - team_id
+  columns:
+  - name: team_id
+    data_type: STRING
+  - name: team_name
+    data_type: STRING
+- name: team_sessions
+  description: One team appearance per session; preserves the source team colour as observed in that session.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - session_key
+        - team_id
+  columns:
+  - name: session_key
+    data_type: INT64
+  - name: team_id
+    data_type: STRING
+  - name: team_colour
+    data_type: STRING
+- name: session_entries
+  description: One source driver entry per session and driver number. Team membership and driver identity are explicit;
+    no Qualifying entries are fabricated.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - session_key
+        - driver_number
+  columns:
+  - name: session_key
+    data_type: INT64
+  - name: driver_number
+    data_type: INT64
+  - name: driver_id
+    data_type: STRING
+  - name: team_id
+    data_type: STRING
+- name: driver_standings
+  description: One driver championship checkpoint per Race session, including drivers who did not enter that race.
+    Points and positions are cumulative, not the race result.
+  columns:
+  - name: driver_id
+    data_type: STRING
+  - name: session_key
+    data_type: INT64
+  - name: points_current
+    data_type: FLOAT64
+  - name: points_start
+    data_type: FLOAT64
+  - name: position_current
+    data_type: INT64
+  - name: position_start
+    data_type: INT64
+- name: team_standings
+  description: One team championship checkpoint per Race session.
+  columns:
+  - name: session_key
+    data_type: INT64
+  - name: team_id
+    data_type: STRING
+  - name: points_current
+    data_type: FLOAT64
+  - name: points_start
+    data_type: FLOAT64
+  - name: position_current
+    data_type: INT64
+  - name: position_start
+    data_type: INT64
+- name: starting_grid
+  description: One driver grid record per main Qualifying session. Join to Race via meeting_key through sessions,
+    never by equating Race and Qualifying keys. Preserves qualifying lap_duration.
+  columns:
+  - name: session_key
+    data_type: INT64
+  - name: driver_id
+    data_type: STRING
+  - name: lap_duration
+    data_type: FLOAT64
+  - name: position
+    data_type: INT64
+- name: car_data
+  description: One driver/session telemetry sample at its source timestamp. Pre/post-race samples are retained.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: brake
+    data_type: INT64
+  - name: drs
+    data_type: INT64
+  - name: n_gear
+    data_type: INT64
+  - name: rpm
+    data_type: INT64
+  - name: speed
+    data_type: INT64
+  - name: throttle
+    data_type: INT64
+- name: intervals
+  description: One timestamped gap observation. Gap strings preserve labels such as +1 LAP.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: gap_to_leader
+    data_type: STRING
+  - name: interval
+    data_type: STRING
+- name: laps
+  description: One entry lap. Incomplete timings and JSON sector segment arrays are preserved; no inferred weather/telemetry
+    joins.
+  columns:
+  - name: driver_number
+    data_type: INT64
+  - name: lap_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: date_start
+    data_type: TIMESTAMP
+  - name: duration_sector_1
+    data_type: FLOAT64
+  - name: duration_sector_2
+    data_type: FLOAT64
+  - name: duration_sector_3
+    data_type: FLOAT64
+  - name: i_1_speed
+    data_type: INT64
+  - name: i_2_speed
+    data_type: INT64
+  - name: is_pit_out_lap
+    data_type: BOOL
+  - name: lap_duration
+    data_type: FLOAT64
+  - name: segments_sector_1
+    data_type: JSON
+  - name: segments_sector_2
+    data_type: JSON
+  - name: segments_sector_3
+    data_type: JSON
+  - name: st_speed
+    data_type: INT64
+- name: location
+  description: One driver/session location sample at its source timestamp. Sampling differs from car_data; no timestamp
+    equality is assumed.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: x
+    data_type: INT64
+  - name: y
+    data_type: INT64
+  - name: z
+    data_type: INT64
+- name: overtakes
+  description: One source position exchange between two session entries. Includes pit-stop and penalty changes,
+    not exclusively on-track passes; feed may be incomplete.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: overtaken_driver_number
+    data_type: INT64
+  - name: overtaking_driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: position
+    data_type: INT64
+- name: pit
+  description: One pit-lane event. Lane duration, source pit_duration and stationary stop_duration remain distinct.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: lane_duration
+    data_type: FLOAT64
+  - name: lap_number
+    data_type: INT64
+  - name: pit_duration
+    data_type: FLOAT64
+  - name: stop_duration
+    data_type: FLOAT64
+- name: position
+  description: One running-order observation per driver entry and source timestamp.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: position
+    data_type: INT64
+- name: race_control
+  description: One timestamped race-control message. Driver reference is optional. message_id preserves the connector
+    hash of the full source message.
+  columns:
+  - name: message_id
+    data_type: STRING
+  - name: session_key
+    data_type: INT64
+  - name: category
+    data_type: STRING
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: flag
+    data_type: STRING
+  - name: lap_number
+    data_type: INT64
+  - name: message
+    data_type: STRING
+  - name: qualifying_phase
+    data_type: STRING
+  - name: scope
+    data_type: STRING
+  - name: sector
+    data_type: INT64
+- name: session_result
+  description: One Race result per driver entry. Finish position, race points, laps completed and DNS/DNF/DSQ indicators
+    are preserved.
+  columns:
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: dnf
+    data_type: BOOL
+  - name: dns
+    data_type: BOOL
+  - name: dsq
+    data_type: BOOL
+  - name: duration
+    data_type: FLOAT64
+  - name: gap_to_leader
+    data_type: STRING
+  - name: number_of_laps
+    data_type: INT64
+  - name: position
+    data_type: INT64
+  - name: points
+    data_type: FLOAT64
+- name: stints
+  description: One tyre stint per driver entry; lap bounds and tyre age are preserved.
+  columns:
+  - name: driver_number
+    data_type: INT64
+  - name: session_key
+    data_type: INT64
+  - name: stint_number
+    data_type: INT64
+  - name: compound
+    data_type: STRING
+  - name: lap_end
+    data_type: INT64
+  - name: lap_start
+    data_type: INT64
+  - name: tyre_age_at_start
+    data_type: INT64
+- name: team_radio
+  description: One radio recording per driver entry, timestamp and recording URL. Audio is referenced, not transcribed.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: driver_number
+    data_type: INT64
+  - name: recording_url
+    data_type: STRING
+  - name: session_key
+    data_type: INT64
+- name: weather
+  description: One session weather observation per source timestamp. No driver reference.
+  columns:
+  - name: date
+    data_type: TIMESTAMP
+  - name: session_key
+    data_type: INT64
+  - name: air_temperature
+    data_type: FLOAT64
+  - name: humidity
+    data_type: FLOAT64
+  - name: pressure
+    data_type: FLOAT64
+  - name: rainfall
+    data_type: INT64
+  - name: track_temperature
+    data_type: FLOAT64
+  - name: wind_direction
+    data_type: INT64
+  - name: wind_speed
+    data_type: FLOAT64
+- name: sync_status
+  description: Operational request coverage at endpoint/scope grain. Metadata scopes have no session; HTTP 404 is
+    unavailable, not zero activity.
+  columns:
+  - name: endpoint
+    data_type: STRING
+  - name: scope
+    data_type: STRING
+  - name: session_key
+    data_type: INT64
+  - name: driver_number
+    data_type: INT64
+  - name: status
+    data_type: STRING
+  - name: row_count
+    data_type: INT64
+  - name: completed_at
+    data_type: TIMESTAMP
+- name: driver_identity_map
+  description: Computed season/number/name-to-person lookup from active driver entries and sessions. IDs use normalized
+    first/last names. Ambiguous season/number mappings, multiple numbers/names per person in a season, and conflicting
+    profiles fail tests.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - season
+        - driver_number
+  - valid_key:
+      arguments:
+        columns:
+        - season
+        - driver_id
+  columns:
+  - name: season
+    data_type: INT64
+  - name: driver_number
+    data_type: INT64
+  - name: source_full_name
+    data_type: STRING
+  - name: driver_id
+    data_type: STRING
+- name: team_identity_map
+  description: Computed season/source-name-to-team lookup from active driver entries and team standings. IDs use
+    normalized source team names; collisions fail tests.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns:
+        - season
+        - source_team_name
+  - valid_key:
+      arguments:
+        columns:
+        - season
+        - team_id
+  columns:
+  - name: season
+    data_type: INT64
+  - name: source_team_name
+    data_type: STRING
+  - name: team_id
+    data_type: STRING
+  - name: team_name
+    data_type: STRING
