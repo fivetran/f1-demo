@@ -299,11 +299,11 @@ from unnest(array<struct<join_name string, from_table string, to_table string, j
         r"""Optional exact driver/lap reference only. LEFT JOIN retains global or unmatched messages. Does not label every lap affected by the message."""
     ),
     (
-        r"""search_chunks_to_meeting""",
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""transcript_chunks_to_meeting""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""{{ target.database }}.f1.meetings""",
         r"""many-one""",
         r"""l.meeting_key = r.meeting_key""",
-        r"""Transcript chunks retain the parent meeting association. Regulations and glossary have null meeting_key and require LEFT JOIN to preserve them; this is not a rule-applicability association."""
+        r"""Transcript chunks retain the parent meeting association. Use LEFT JOIN to preserve unmatched documents; this is not speaker-to-driver resolution."""
     )
 ])

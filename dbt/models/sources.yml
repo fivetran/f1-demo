@@ -1,3 +1,4 @@
+# Maintain source declarations directly alongside connector schema changes.
 version: 2
 sources:
 - name: openf1

@@ -531,31 +531,91 @@ from unnest(array<struct<table_name string, measure_name string, sql_expression 
         r"""Maximum recorded track temperature in degrees Celsius."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Number of chunks, not documents, rules, utterances or incidents."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""row_count""",
+        r"""COUNT(*)""",
+        r"""Number of chunks, not documents, rules, utterances or incidents."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""row_count""",
+        r"""COUNT(*)""",
+        r"""Number of chunks, not documents, rules, utterances or incidents."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""document_count""",
-        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_type, t.document_id)))""",
+        r"""COUNT(DISTINCT t.document_id)""",
         r"""Distinct source documents represented by these chunks."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""document_count""",
+        r"""COUNT(DISTINCT t.document_id)""",
+        r"""Distinct source documents represented by these chunks."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""document_count""",
+        r"""COUNT(DISTINCT t.document_id)""",
+        r"""Distinct source documents represented by these chunks."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""source_block_count""",
-        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_type, t.document_id, t.source_position)))""",
+        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_id, t.source_position)))""",
         r"""Distinct original text blocks; one block can contain multiple search chunks."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""source_block_count""",
+        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_id, t.source_position)))""",
+        r"""Distinct original text blocks; one block can contain multiple search chunks."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""source_block_count""",
+        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_id, t.source_position)))""",
+        r"""Distinct original text blocks; one block can contain multiple search chunks."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""embedding_ready_count""",
         r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 768)""",
         r"""Chunks with a usable 768-dimensional embedding; compare with row_count to assess search coverage."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""embedding_ready_count""",
+        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 768)""",
+        r"""Chunks with a usable 768-dimensional embedding; compare with row_count to assess search coverage."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""embedding_ready_count""",
+        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 768)""",
+        r"""Chunks with a usable 768-dimensional embedding; compare with row_count to assess search coverage."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
+        r"""embedding_error_count""",
+        r"""COUNTIF(t.embedding.status != '')""",
+        r"""Chunks whose embedding status reports an error; these lack a successful semantic representation."""
+    ),
+    (
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""embedding_error_count""",
+        r"""COUNTIF(t.embedding.status != '')""",
+        r"""Chunks whose embedding status reports an error; these lack a successful semantic representation."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""embedding_error_count""",
         r"""COUNTIF(t.embedding.status != '')""",
         r"""Chunks whose embedding status reports an error; these lack a successful semantic representation."""

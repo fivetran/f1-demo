@@ -1,11 +1,25 @@
 {{ config(materialized='view') }}
 
 with passages as (
-    {{ document_search_source('transcript', 'transcript_passages', 'transcripts') }}
-    union all
-    {{ document_search_source('regulation', 'regulation_sections', 'regulations') }}
-    union all
-    {{ document_search_source('glossary', 'glossary_sections', 'glossary') }}
+    select
+        'glossary' as document_type,
+        s.document_id,
+        s.position as source_position,
+        s.text,
+        s.question,
+        s.speaker as speaker_label,
+        s.section,
+        s.page_number,
+        p.title,
+        p.source_url,
+        p.published_at,
+        p.applicability_status,
+        lag(s.text) over (partition by s.document_id order by s.position) as previous_text,
+        lead(s.text) over (partition by s.document_id order by s.position) as next_text
+    from {{ source('documents', 'glossary_sections') }} as s
+    join {{ source('documents', 'glossary') }} as p on s.document_id = p.document_id
+    where not coalesce(s._fivetran_deleted, false)
+      and not coalesce(p._fivetran_deleted, false)
 ), chunks as (
     select p.*, chunk.chunk_text, chunk.chunk_index
     from passages as p,

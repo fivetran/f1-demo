@@ -963,157 +963,367 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""Wind speed in metres per second."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""document_type""",
         r"""STRING""",
-        r"""Source topic: transcript, regulation or glossary. Filter this before topic-specific analysis."""
+        r"""Constant source label: transcript. Choose the appropriate search table before querying."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""document_type""",
+        r"""STRING""",
+        r"""Constant source label: regulation. Choose the appropriate search table before querying."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""document_type""",
+        r"""STRING""",
+        r"""Constant source label: glossary. Choose the appropriate search table before querying."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""document_id""",
         r"""STRING""",
         r"""Document identifier; with document_type and source_position identifies the original text block."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""document_id""",
+        r"""STRING""",
+        r"""Document identifier; with document_type and source_position identifies the original text block."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""document_id""",
+        r"""STRING""",
+        r"""Document identifier; with document_type and source_position identifies the original text block."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""source_position""",
         r"""INTEGER""",
         r"""Zero-based block order within a document. Repeated across chunks; select chunk_index = 0 to read each complete text block once, ordered by source_position."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""source_position""",
+        r"""INTEGER""",
+        r"""Zero-based block order within a document. Repeated across chunks; select chunk_index = 0 to read each complete text block once, ordered by source_position."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""source_position""",
+        r"""INTEGER""",
+        r"""Zero-based block order within a document. Repeated across chunks; select chunk_index = 0 to read each complete text block once, ordered by source_position."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""text""",
         r"""STRING""",
         r"""Complete original source block, repeated for each of its chunks. Use chunk_text for a retrieved excerpt and text for its immediate context."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""text""",
+        r"""STRING""",
+        r"""Complete original source block, repeated for each of its chunks. Use chunk_text for a retrieved excerpt and text for its immediate context."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""text""",
+        r"""STRING""",
+        r"""Complete original source block, repeated for each of its chunks. Use chunk_text for a retrieved excerpt and text for its immediate context."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""question""",
         r"""STRING""",
         r"""Complete source-markup question, when identified; null in regulations/glossary. Not a generated question."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""question""",
+        r"""STRING""",
+        r"""Complete source-markup question, when identified; null in regulations/glossary. Not a generated question."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""question""",
+        r"""STRING""",
+        r"""Complete source-markup question, when identified; null in regulations/glossary. Not a generated question."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""speaker_label""",
         r"""STRING""",
         r"""Literal source speaker or section label. Not a verified driver identity; glossary labels can be Example."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""speaker_label""",
+        r"""STRING""",
+        r"""Literal source speaker or section label. Not a verified driver identity; glossary labels can be Example."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""speaker_label""",
+        r"""STRING""",
+        r"""Literal source speaker or section label. Not a verified driver identity; glossary labels can be Example."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""section""",
         r"""STRING""",
         r"""Source section heading, when available; not a globally unique rule/article identifier."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""section""",
+        r"""STRING""",
+        r"""Source section heading, when available; not a globally unique rule/article identifier."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""section""",
+        r"""STRING""",
+        r"""Source section heading, when available; not a globally unique rule/article identifier."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""page_number""",
         r"""INTEGER""",
         r"""Source PDF page number, when available; not the block ordinal or chunk index."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""page_number""",
+        r"""INTEGER""",
+        r"""Source PDF page number, when available; not the block ordinal or chunk index."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""page_number""",
+        r"""INTEGER""",
+        r"""Source PDF page number, when available; not the block ordinal or chunk index."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""title""",
         r"""STRING""",
         r"""Parent document title identifying conference, regulation edition or glossary page."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""title""",
+        r"""STRING""",
+        r"""Parent document title identifying conference, regulation edition or glossary page."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""title""",
+        r"""STRING""",
+        r"""Parent document title identifying conference, regulation edition or glossary page."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""source_url""",
         r"""STRING""",
         r"""Parent source URL for citation and provenance."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""source_url""",
+        r"""STRING""",
+        r"""Parent source URL for citation and provenance."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""source_url""",
+        r"""STRING""",
+        r"""Parent source URL for citation and provenance."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""published_at""",
         r"""STRING""",
         r"""Parent publication date/time as source STRING. Publication time is not event time or proof of legal applicability."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""published_at""",
+        r"""STRING""",
+        r"""Parent publication date/time as source STRING. Publication time is not event time or proof of legal applicability."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""published_at""",
+        r"""STRING""",
+        r"""Parent publication date/time as source STRING. Publication time is not event time or proof of legal applicability."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""meeting_key""",
         r"""INTEGER""",
-        r"""Recorded transcript meeting association; null for glossary/regulations. Not inferred from passage text."""
+        r"""Recorded transcript meeting association. Not inferred from passage text."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""race_name""",
         r"""STRING""",
-        r"""Transcript race label from the parent document; null for other topics."""
+        r"""Transcript race label from the parent document."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""conference_type""",
         r"""STRING""",
         r"""Transcript conference type, including post-race. Null for non-transcripts."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""association_method""",
         r"""STRING""",
-        r"""Provenance of the transcript-to-meeting association; null for other topics."""
+        r"""Provenance of the transcript-to-meeting association."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""applicable_season""",
         r"""INTEGER""",
         r"""Regulation season annotation; insufficient to establish article applicability at a particular race."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""rule_family""",
         r"""STRING""",
-        r"""Regulation family such as sporting or technical; null for other topics."""
+        r"""Regulation family such as sporting or technical."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""applicability_status""",
         r"""STRING""",
-        r"""Source applicability caveat for a regulation/glossary document; null for transcripts."""
+        r"""Source applicability caveat for a regulation/glossary document."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""applicability_status""",
+        r"""STRING""",
+        r"""Source applicability caveat for a regulation/glossary document."""
+    ),
+    (
+        r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""effective_from""",
         r"""STRING""",
         r"""Source regulation effective-date string, if known. Current editions are unknown; never infer from publication."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""effective_to""",
         r"""STRING""",
         r"""Source regulation end-of-effectivity string, if known; unknown remains null."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""chunk_text""",
         r"""STRING""",
         r"""Contiguous group of at most 120 whitespace-delimited words from the source block, with original whitespace retained."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""chunk_text""",
+        r"""STRING""",
+        r"""Contiguous group of at most 120 whitespace-delimited words from the source block, with original whitespace retained."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""chunk_text""",
+        r"""STRING""",
+        r"""Contiguous group of at most 120 whitespace-delimited words from the source block, with original whitespace retained."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""chunk_index""",
         r"""INTEGER""",
         r"""Zero-based chunk within the original block; ordered chunk_text concatenation reconstructs that block."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""chunk_index""",
+        r"""INTEGER""",
+        r"""Zero-based chunk within the original block; ordered chunk_text concatenation reconstructs that block."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""chunk_index""",
+        r"""INTEGER""",
+        r"""Zero-based chunk within the original block; ordered chunk_text concatenation reconstructs that block."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""passage_id""",
         r"""STRING""",
         r"""Opaque search chunk identifier. The equivalent natural key is document_type, document_id, source_position and chunk_index; use these fields to locate the original text."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""passage_id""",
+        r"""STRING""",
+        r"""Opaque search chunk identifier. The equivalent natural key is document_type, document_id, source_position and chunk_index; use these fields to locate the original text."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""passage_id""",
+        r"""STRING""",
+        r"""Opaque search chunk identifier. The equivalent natural key is document_type, document_id, source_position and chunk_index; use these fields to locate the original text."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""embedding_text""",
         r"""STRING""",
         r"""Text searched by semantic and keyword retrieval: full chunk plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify chunk_text and original source."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""embedding_text""",
+        r"""STRING""",
+        r"""Text searched by semantic and keyword retrieval: full chunk plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify chunk_text and original source."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""embedding_text""",
+        r"""STRING""",
+        r"""Text searched by semantic and keyword retrieval: full chunk plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify chunk_text and original source."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""content_hash""",
         r"""STRING""",
         r"""Fingerprint of the chunk text, context and metadata. It is not a document or passage identifier; use passage_id for chunk identity."""
     ),
     (
-        r"""{{ target.database }}.f1.document_passages_search""",
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""content_hash""",
+        r"""STRING""",
+        r"""Fingerprint of the chunk text, context and metadata. It is not a document or passage identifier; use passage_id for chunk identity."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""content_hash""",
+        r"""STRING""",
+        r"""Fingerprint of the chunk text, context and metadata. It is not a document or passage identifier; use passage_id for chunk identity."""
+    ),
+    (
+        r"""{{ target.database }}.f1.transcript_passages_search""",
+        r"""embedding""",
+        r"""RECORD""",
+        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (768 dimensions, text-embedding-005) and status STRING. NULL is pending; empty status and a 768-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings."""
+    ),
+    (
+        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""embedding""",
+        r"""RECORD""",
+        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (768 dimensions, text-embedding-005) and status STRING. NULL is pending; empty status and a 768-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings."""
+    ),
+    (
+        r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""embedding""",
         r"""RECORD""",
         r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (768 dimensions, text-embedding-005) and status STRING. NULL is pending; empty status and a 768-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings."""

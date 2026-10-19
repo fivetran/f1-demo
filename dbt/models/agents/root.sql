@@ -31,15 +31,15 @@ Drivers are people, teams are named team identities, and session_entries assigns
 
 ## Documents
 
-Transcript coverage remains 2025; do not infer 2026 document coverage from racing tables. Read transcripts, regulations and glossary text from `document_passages_search`, filtering `document_type`. Each row carries document metadata and citation URL alongside the chunk and its complete original `text` block. To read each block once, select `chunk_index = 0` and order by `source_position` within `(document_type, document_id)`. To retrieve adjacent context, query the same table for the neighboring source positions. A block is not necessarily one article, glossary term or utterance. Use distinct document keys for document counts. Transcript meeting associations retain `association_method` provenance. Explicit speaker labels are text, not verified driver identities; do not join on a mentioned name.
+Transcript coverage remains 2025; do not infer 2026 document coverage from racing tables. Choose `transcript_passages_search` for press-conference quotes, `regulation_passages_search` for rules, and `glossary_passages_search` for definitions. Query the relevant table directly; for questions spanning sources, search each relevant table separately and synthesize the cited evidence. Each row carries document metadata and citation URL alongside the chunk and its complete original `text` block. To read each block once, select `chunk_index = 0` and order by `source_position` within `(document_type, document_id)`. To retrieve adjacent context, query the same table for the neighboring source positions. A block is not necessarily one article, glossary term or utterance. Use distinct document keys for document counts. Transcript meeting associations retain `association_method` provenance. Explicit speaker labels are text, not verified driver identities; do not join on a mentioned name.
 
 Regulation editions require applicability assessment; published_at does not prove an article's effective date, and unknown effective dates stay unknown. Current glossary pages explain terminology but are not historical 2025 law. No season-only regulation-to-race join or inferred speaker-to-driver join is declared.
 
 ## Hybrid document retrieval
 
-Use `f1.document_passages_search` for semantic-plus-keyword retrieval over transcript, regulation and glossary chunks. Search `embedding_text`; return `chunk_text` with document metadata for context and citation. A usable embedding has empty status and a 768-element result. NULL embeddings are unavailable for search, and nonempty status indicates an error. Compare embedding_ready_count with row_count to assess how much of the selected corpus is searchable.
+Use `f1.transcript_passages_search`, `f1.regulation_passages_search`, or `f1.glossary_passages_search` according to the question. Each has its own embeddings and supports hybrid search. Small sources can be searched without an index. Search `embedding_text`; return `chunk_text` with document metadata for context and citation. A usable embedding has empty status and a 768-element result. NULL embeddings are unavailable for search, and nonempty status indicates an error. Compare embedding_ready_count with row_count to assess how much of the selected corpus is searchable.
 
-Use `AI.SEARCH((SELECT * FROM ... WHERE document_type = 'transcript'), 'embedding_text', 'your question', mode => 'HYBRID', top_k => 5)`, with the fully qualified physical table in place of `...`. Explicit HYBRID avoids AUTO silently selecting semantic-only search. Available stored prefilters include document_type, document_id, meeting_key, conference_type, speaker_label, rule_family and applicable_season. A speaker label is not a verified identity; a regulation season is not proof of applicability.
+Use ``AI.SEARCH(TABLE `{{ target.database }}.f1.transcript_passages_search`, 'embedding_text', 'your question', mode => 'HYBRID', top_k => 5)`` for transcript evidence; substitute the regulation or glossary table when appropriate. Explicit HYBRID avoids AUTO silently selecting semantic-only search. All three tables store document_id, source_position and speaker_label for prefiltering; transcripts additionally store meeting_key and conference_type, and regulations store rule_family and applicable_season. Do not refer to transcript columns in the regulation/glossary tables or regulation columns in the other tables. A speaker label is not a verified identity; a regulation season is not proof of applicability.
 
 The search grain is a chunk of at most 120 words. Multiple chunks can repeat the same source block and its full `text`. Deduplicate `(document_type, document_id, source_position)` when counting blocks, or `(document_type, document_id)` when counting documents. `embedding_text` includes bounded contextual material; glossary context can mention neighboring definitions. Inspect `chunk_text` and the full `text` block, read adjacent positions in this table when needed, and cite `source_url`. Hybrid matches and their semantic distances are not exhaustive fact counts or calibrated confidence scores. The output order is not guaranteed. AI.SEARCH omits rows without embeddings; check readiness when freshness matters. The query examples below illustrate all three topics.
 
@@ -84,9 +84,9 @@ This coverage checklist restates the exploratory topics for the new catalog; it 
 | 15 | How did the gaps to the leader evolve? | intervals numeric gap averages plus numeric coverage; preserve +1 LAP labels; explicit time windows. |
 | 16 | What were race weather conditions, and did it rain? | weather average temperatures and rainy_sample_fraction -> sessions; sample statistics, not duration/depth. |
 | 17 | Which flags and race-control messages occurred around an incident? | race_control messages with optional entry/lap joins; explicit time window for other feeds; message count is not incident duration. |
-| 18 | What did drivers say after a difficult race, and what radio clips are available? | document_passages_search filtered to transcript -> meetings; read text once per source_position using chunk_index = 0, with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
-| 19 | What do racing terms mean, and what did the relevant regulation edition say? | document_passages_search filtered to glossary or regulation; inspect full text blocks and edition/applicability, cite sources, no season-only legal join. |
-| 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status unavailable_scope_count / reported_source_rows for racing coverage; document_passages_search document_count / source_block_count and embedding_ready_count for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
+| 18 | What did drivers say after a difficult race, and what radio clips are available? | transcript_passages_search -> meetings; read text once per source_position using chunk_index = 0, with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
+| 19 | What do racing terms mean, and what did the relevant regulation edition say? | glossary_passages_search or regulation_passages_search; inspect full text blocks and edition/applicability, cite sources, no season-only legal join. |
+| 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status unavailable_scope_count / reported_source_rows for racing coverage; each chosen search table's document_count / source_block_count and embedding_ready_count for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
 
 # Query examples
 
@@ -188,8 +188,7 @@ Question: Explain dirty air and loss of downforce when following another car, us
 select base.document_id, base.source_position, base.chunk_index,
        base.title, base.chunk_text, base.embedding_text, base.source_url, distance
 from ai.search(
-    (select * from `{{ target.database }}.f1.document_passages_search`
-     where document_type = 'glossary'),
+    (select * from `{{ target.database }}.f1.glossary_passages_search`),
     'embedding_text', 'dirty air and loss of downforce when following another car',
     mode => 'HYBRID', top_k => 5
 )
@@ -205,8 +204,7 @@ select base.document_id, base.source_position, base.chunk_index,
        base.title, base.rule_family, base.effective_from, base.effective_to,
        base.chunk_text, base.source_url, distance
 from ai.search(
-    (select * from `{{ target.database }}.f1.document_passages_search`
-     where document_type = 'regulation'),
+    (select * from `{{ target.database }}.f1.regulation_passages_search`),
     'embedding_text', 'leaving the track and gaining a lasting advantage',
     mode => 'HYBRID', top_k => 5
 )
@@ -223,8 +221,8 @@ select base.document_id, base.source_position, base.chunk_index,
        base.title, base.speaker_label, base.question, base.chunk_text,
        base.source_url, distance
 from ai.search(
-    (select * from `{{ target.database }}.f1.document_passages_search`
-     where document_type = 'transcript' and conference_type = 'post-race'),
+    (select * from `{{ target.database }}.f1.transcript_passages_search`
+     where conference_type = 'post-race'),
     'embedding_text', 'tyre degradation and managing the tyres during the race',
     mode => 'HYBRID', top_k => 5
 )
@@ -238,10 +236,9 @@ Question: Show original transcript blocks mentioning tyres, with their race cont
 -- Each chunk repeats its full original text block; choose chunk 0 to read it once.
 SELECT p.document_id, p.source_url, p.title, p.conference_type, p.association_method,
   m.meeting_name, p.source_position, p.speaker_label, p.question, p.text
-FROM `{{ target.database }}.f1.document_passages_search` AS p
+FROM `{{ target.database }}.f1.transcript_passages_search` AS p
 LEFT JOIN `{{ target.database }}.f1.meetings` AS m USING (meeting_key)
-WHERE p.document_type = 'transcript'
-  AND p.chunk_index = 0
+WHERE p.chunk_index = 0
   AND LOWER(COALESCE(p.text, '')) LIKE '%tyre%'
 ORDER BY p.document_id, p.source_position
 LIMIT 100

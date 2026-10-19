@@ -8,7 +8,7 @@ Keep this project small. The user explicitly requested a minimalist implementati
 - dbt builds the approved [normalized models](dbt/models/openf1/) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
 - Document search uses BigQuery-managed embeddings and a hybrid index, maintained by dbt. Five inline SQL models build exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
 - OpenF1 covers 2025 and completed 2026 races; document coverage remains 2025. The authorized season replacement already completed; it is not permission for future truncations. No recurring schedule exists.
-- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. [The catalog models](dbt/models/agents/) documents finished table grains, joins and limitations.
+- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. Maintain source YAML directly when connector schemas change; there is no source generator. [The catalog models](dbt/models/agents/) document finished table grains, joins and limitations.
 
 ## Accounts and tools
 
@@ -54,7 +54,7 @@ Deploy from the connector directory with the SDK environment on PATH. OpenF1 use
 
 ## Minimal Agents Schema
 
-AGENTS is **reader guidance for finished tables only**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. Exclude source datasets, identity lookup models, `document_search_input`, and connector/dbt implementation details. The catalog covers 24 finished OpenF1 tables and `f1.document_passages_search`.
+AGENTS is **reader guidance for finished tables only**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. Exclude source datasets, identity lookup models, the three search-input views, and connector/dbt implementation details. The catalog covers 24 finished OpenF1 tables plus `f1.transcript_passages_search`, `f1.regulation_passages_search`, and `f1.glossary_passages_search` (27 finished tables).
 
 Edit the five [SQL models](dbt/models/agents/) directly; they are the source of truth. [root.sql](dbt/models/agents/root.sql) selects one `user`/`user` row with the complete Markdown document in a raw triple-quoted SQL string. The other four models use typed inline rows; TABLES.primary_key is a native ARRAY<STRING>. Keep query examples in ROOT in the `## name`, `Question: ...`, fenced SQL format used by the agent configuration and search inspector.
 
@@ -78,9 +78,9 @@ No BI Engine capacity is required. Queries use the configured billing project an
 
 ## Managed document search
 
-[Search models](dbt/models/search/) merge changed chunks into `f1.document_passages_search` and delete obsolete chunks. Each chunk has at most 120 whitespace-delimited words; concatenation preserves every original character. `embedding_text` adds bounded title/heading/speaker/question and neighboring glossary context. The original text remains available; read each block once with `chunk_index = 0`, ordered by `source_position` within document type/id.
+[Search models](dbt/models/search/) maintain separate `f1.transcript_passages_search`, `f1.regulation_passages_search`, and `f1.glossary_passages_search` tables, each with an input view, incremental merge, and obsolete-chunk deletion. The agent chooses the source table; cross-source questions use separate searches. Only transcripts expose meeting/conference fields; regulation applicability fields stay on regulations, with applicability_status also on glossary. Each chunk has at most 120 whitespace-delimited words; concatenation preserves every original character. `embedding_text` adds bounded title/heading/speaker/question and neighboring glossary context. The original text remains available; read each block once with `chunk_index = 0`, ordered by `source_position` within document type/id.
 
-[Search hooks](dbt/macros/document_search.sql) create an asynchronous AI.EMBED column using `text-embedding-005` (768 dimensions), plus `document_passages_hybrid` (IVF/COSINE, lexical_search_columns=['embedding_text']). Hybrid search is Preview. No standalone search index is used.
+[Search hooks](dbt/macros/document_search.sql) create an asynchronous AI.EMBED column using `text-embedding-005` (768 dimensions), plus, for sources with at least 5,000 chunks, a source-specific `transcript_passages_hybrid`, `regulation_passages_hybrid`, or `glossary_passages_hybrid` index (IVF/COSINE, lexical_search_columns=['embedding_text']). Smaller sources use hybrid search without an index. Hybrid search is Preview. No standalone search index is used.
 
 One-time setup:
 
@@ -98,6 +98,6 @@ Routine refresh/status:
 .venv/bin/python scripts/inspect_document_search.py --query
 ```
 
-Build completion does not mean embedding/index maintenance is complete. The status script reports pending/errors, index coverage and optional uncached hybrid query index usage. Missing embeddings are omitted from AI.SEARCH. Use explicit `mode => 'HYBRID'`; results are relevant evidence, not exhaustive counts. ACTIVE alone does not prove acceleration; check coverage and query statistics.
+Build completion does not mean embedding/index maintenance is complete. The status script reports pending/errors, index coverage and optional uncached hybrid query index usage for each of the three sources. Missing embeddings are omitted from AI.SEARCH. Use explicit `mode => 'HYBRID'`; results are relevant evidence, not exhaustive counts. ACTIVE alone does not prove acceleration; check coverage and query statistics.
 
 Keep `on_schema_change='append_new_columns'` so merge leaves the generated embedding intact. `ignore` tries to write it and `sync_all_columns` drops it. Full refresh is disabled to avoid unnecessary regeneration. `content_hash` excludes embeddings and prevents updates to unchanged rows. Model/index migrations must be deliberate. Use whitespace tokenization for chunks; large bounded RE2 repetitions were slow or rejected.
