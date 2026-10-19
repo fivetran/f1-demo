@@ -8,18 +8,12 @@ test-paths:
 - tests
 macro-paths:
 - macros
-seed-paths:
-- seeds
-seeds:
-  f1_demo:
-    agents:
-      +schema: agents_seed
-      +tags: [agents_schema]
-      +quote_columns: true
-      +labels:
-        publisher: f1-demo-agents
 models:
   f1_demo:
+    agents:
+      +schema: AGENTS
+      +materialized: table
+      +tags: [agents_schema]
     search:
       +tags:
       - document_search
@@ -29,5 +23,3 @@ models:
       - normalized_openf1
 on-run-start:
 - '{{ assert_analytics_target() }}'
-on-run-end:
-- '{{ publish_agents_after_run(results) }}'

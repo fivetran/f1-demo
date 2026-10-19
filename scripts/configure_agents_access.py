@@ -1,4 +1,4 @@
-"""Grant the existing dbt service account access to only the two metadata datasets."""
+"""Grant the existing dbt service account access to the AGENTS dataset."""
 
 import os
 
@@ -13,7 +13,7 @@ ACCOUNT = os.environ["F1_DBT_SERVICE_ACCOUNT"]
 
 def main():
     client = bigquery.Client(project=PROJECT, location="US")
-    for name in ["AGENTS", "f1_agents_seed"]:
+    for name in ["AGENTS"]:
         dataset = client.get_dataset(f"{PROJECT}.{name}")
         assert dataset.location == "US"
         entries = list(dataset.access_entries)

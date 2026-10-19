@@ -1,27 +1,27 @@
 # F1 project guide
 
-Keep this project small. The user explicitly requested a minimalist implementation on 2026-10-12: prefer direct SQL and a few meaningful checks; do not add exhaustive assertions, fingerprint frameworks, duplicate inspectors or tests for every column. Keep operational instructions here and reader guidance in [agents/](agents/).
+Keep this project small. The user explicitly requested a minimalist implementation on 2026-10-12: prefer direct SQL and a few meaningful checks; do not add exhaustive assertions, fingerprint frameworks, duplicate inspectors or tests for every column. Keep operational instructions here and reader guidance in the [catalog models](dbt/models/agents/).
 
 ## Architecture and boundaries
 
 - Two Fivetran SDK connectors load typed OpenF1 endpoint tables and readable document tables. No generic payload/snapshot architecture.
 - dbt builds the approved [normalized models](dbt/models/openf1/) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
-- Document search uses BigQuery-managed embeddings and a hybrid index, maintained by dbt. Five metadata seeds publish exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
+- Document search uses BigQuery-managed embeddings and a hybrid index, maintained by dbt. Five inline SQL models build exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
 - OpenF1 covers 2025 and completed 2026 races; document coverage remains 2025. The authorized season replacement already completed; it is not permission for future truncations. No recurring schedule exists.
-- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. [The catalog](agents/catalog.yml) documents finished table grains, joins and limitations.
+- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. [The catalog models](dbt/models/agents/) documents finished table grains, joins and limitations.
 
 ## Accounts and tools
 
 - Account IDs, billing IDs, connection IDs, service-account emails and the private agent URL belong in the ignored root `.env`. Start from [.env.example](.env.example). Never copy actual values into tracked files. Historical deployment details are retained locally in ignored `infra/deployment.json`.
 - Python operational scripts load `.env` automatically; exported variables take precedence. Run Fusion through `../scripts/with_config.py` from `dbt`, or export the settings first. Local Fusion is the supported execution path.
-- Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1`, `f1_agents_seed` and `AGENTS`; ingestion identities own the source datasets.
+- Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1` and `AGENTS`; ingestion identities own the source datasets.
 - Credentials stay outside the repository in `~/.config/f1-demo/credentials.json` (0600). BigQuery/Fusion use Google application-default credentials. Named gcloud login is separate. Never print tokens, full credential responses or credential-bearing subprocess arguments.
 - Python 3.12.8, Connector SDK 2.12.1, Fivetran CLI 1.0.0, dbt Fusion 2.0.8. Use the pinned requirements and `.venv` (create it with Python 3.12.8 if absent); do not replace Fusion with Python dbt-core 1.x. CLIs are also in `~/.local/bin`.
 - Remote: [fivetran/f1-demo](https://github.com/fivetran/f1-demo), dbt subdirectory `dbt`. `/tmp/f1-demo-publish` is a publishing checkout. Publish only nonignored files; exclude caches, environments, debugger files and credentials.
 
 ## Routine work
 
-Run Fusion from the `dbt` directory (required for seed paths), with four threads:
+Run Fusion from the `dbt` directory, with four threads:
 
 ```sh
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --threads 4 --no-manage-state)
@@ -46,7 +46,7 @@ A small run-start hook restricts dbt to this project's `f1` target. It clears hi
 - Documents have parent and ordered section tables. Changed documents remove obsolete sections; removed manifests/404/410 remove current documents. Download/parse failures retain the previous good document and fail the sync for retry.
 - Reuse the checked [document manifest](connectors/documents/manifest.full.json). FIA requests follow robots.txt and a ten-second interval; do not overlap crawlers.
 - Speaker labels come from markup, not person resolution. Publication dates are not event/effective dates. Unknown regulation effective dates remain null, and current glossary pages are not historical 2025 law.
-- Do not advertise inclusive lap/stint ranges as many-one: observed overlaps make them ambiguous. Independent telemetry feeds need explicit time alignment. Preserve unexpected telemetry codes rather than clamping them. Championship checkpoints are source snapshots, not reconciled race-point facts. Detailed query limitations are in [agents/catalog.yml](agents/catalog.yml).
+- Do not advertise inclusive lap/stint ranges as many-one: observed overlaps make them ambiguous. Independent telemetry feeds need explicit time alignment. Preserve unexpected telemetry codes rather than clamping them. Championship checkpoints are source snapshots, not reconciled race-point facts. Detailed query limitations are in [the catalog models](dbt/models/agents/).
 
 For SDK debugging, use the Singapore example before a full backfill. Config paths resolve from the connector directory; stop the debugger before reading its DuckDB file. Local document caches use `../../.cache/sources`; hosted checkpoints, not caches, prevent repeat downloads.
 
@@ -54,18 +54,19 @@ Deploy from the connector directory with the SDK environment on PATH. OpenF1 use
 
 ## Minimal Agents Schema
 
-AGENTS is **reader guidance for finished tables only**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. Exclude source datasets, identity lookup models, `document_search_input`, private seed storage, and connector/dbt implementation details. The catalog covers 24 finished OpenF1 tables and `f1.document_passages_search`.
+AGENTS is **reader guidance for finished tables only**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. Exclude source datasets, identity lookup models, `document_search_input`, and connector/dbt implementation details. The catalog covers 24 finished OpenF1 tables and `f1.document_passages_search`.
 
-Author [catalog.yml](agents/catalog.yml), [ROOT.md](agents/ROOT.md), [QUESTIONS.md](agents/QUESTIONS.md) and [query examples](agents/queries/), then:
+Edit the five [SQL models](dbt/models/agents/) directly; they are the source of truth. [root.sql](dbt/models/agents/root.sql) selects one `user`/`user` row with the complete Markdown document in a raw triple-quoted SQL string. The other four models use typed inline rows; TABLES.primary_key is a native ARRAY<STRING>. Keep query examples in ROOT in the `## name`, `Question: ...`, fenced SQL format used by the agent configuration and search inspector.
+
+Build the catalog:
 
 ```sh
-.venv/bin/python scripts/render_agents_seeds.py
-(cd dbt && python3 ../scripts/with_config.py dbt seed --profiles-dir . --select tag:agents_schema --threads 4 --no-manage-state)
+(cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:agents_schema --threads 4 --no-manage-state)
 ```
 
-Commit the five generated CSVs with their authoring inputs. Keep `__F1_GCP_PROJECT__` in the tracked authoring inputs and seeds; the publication hook resolves it to `target.database` in all published table references and ROOT text. Never render account IDs into tracked seeds. Production dbt needs no Python generator. Seeds load into `f1_agents_seed`; the [publication hook](dbt/macros/publish_agents.sql) publishes all five in one transaction after a successful complete seed batch. It preserves other ROOT providers and public table identities. A partial batch fails; a failed invocation skips publication. No automatic whole-warehouse validation runs.
+Use `{{ target.database }}` in inline table references and Markdown examples. Never put account IDs in tracked SQL. Raw triple-double-quoted strings preserve newlines, single/double quotes and backslashes; do not embed a triple-double-quote delimiter without changing the SQL quoting. The [schema naming macro](dbt/macros/generate_schema_name.sql) maps the models' AGENTS schema directly to the canonical dataset; ordinary models keep the normal target schema behavior. Each model explicitly aliases its uppercase table name.
 
-ROOT follows `provider, key, content` with provider `f1`; the four other tables are the custom dimensional extension. Keep their canonical uppercase names. Fusion cannot load quoted multiline CSV cells, so ROOT text is JSON-encoded in CSV and decoded with JSON_VALUE; primary keys similarly use JSON_VALUE_ARRAY. [Seed types](dbt/seeds/agents/schema.yml) are explicit STRINGs. [configure_agents_access.py](scripts/configure_agents_access.py) grants the two metadata dataset WRITER entries when bootstrapping.
+There are no catalog seeds, generator, staging dependency, or publication hook. Models rebuild as tables and update individually; a failed build can leave a partially updated catalog. Refresh the data agent only after all five models succeed. The old `f1_agents_seed` dataset is no longer used; historical staging tables have not been deleted. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants AGENTS dataset WRITER access when bootstrapping.
 
 No BI Engine capacity is required. Queries use the configured billing project and US location.
 

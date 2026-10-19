@@ -3,14 +3,13 @@
 import argparse
 import json
 import os
-from pathlib import Path
+import re
 
 from google.cloud import bigquery
 from local_config import load_config
 
 load_config()
 
-ROOT = Path(__file__).resolve().parents[1]
 PROJECT = os.environ["F1_GCP_PROJECT"]
 
 
@@ -42,8 +41,12 @@ def main():
     for name, sql in queries.items():
         print(name + ": " + json.dumps([dict(r) for r in client.query(sql).result()], default=str))
     if args.query:
+        guidance = next(iter(client.query(
+            f"SELECT content FROM `{PROJECT}.AGENTS.ROOT` WHERE provider = 'user' AND key = 'user'"
+        ).result()))["content"]
+        sql = re.search(r"^## search_transcripts\n.*?```sql\n(.*?)\n```", guidance, re.M | re.S).group(1)
         job = client.query(
-            (ROOT / "agents/queries/search_transcripts.sql").read_text().replace("__F1_GCP_PROJECT__", PROJECT),
+            sql.replace("__F1_GCP_PROJECT__", PROJECT),
             job_config=bigquery.QueryJobConfig(use_query_cache=False),
         )
         rows = [dict(row) for row in job.result()]

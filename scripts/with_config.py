@@ -2,7 +2,7 @@
 
 Examples (from the repository root):
   python3 scripts/with_config.py dbt parse --project-dir dbt --profiles-dir dbt
-  python3 scripts/with_config.py --render agents/queries/grid_to_finish.sql
+  python3 scripts/with_config.py --render path/to/query.sql
 """
 
 import os
