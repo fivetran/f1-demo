@@ -66,7 +66,7 @@ Build the catalog:
 
 Use `{{ target.database }}` in inline table references and Markdown examples. Never put account IDs in tracked SQL. Raw triple-double-quoted strings preserve newlines, single/double quotes and backslashes; do not embed a triple-double-quote delimiter without changing the SQL quoting. The [schema naming macro](dbt/macros/generate_schema_name.sql) maps the models' AGENTS schema directly to the canonical dataset; ordinary models keep the normal target schema behavior. Each model explicitly aliases its uppercase table name.
 
-There are no catalog seeds, generator, staging dependency, or publication hook. Models rebuild as tables and update individually; a failed build can leave a partially updated catalog. Refresh the data agent only after all five models succeed. The old `f1_agents_seed` dataset is no longer used; historical staging tables have not been deleted. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants AGENTS dataset WRITER access when bootstrapping.
+There are no catalog seeds, generator, staging dependency, or publication hook. Models rebuild as tables and update individually; a failed build can leave a partially updated catalog. Refresh the data agent only after all five models succeed. The obsolete `f1_agents_seed` dataset and its five historical seed tables were deleted on 2026-10-19. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants AGENTS dataset WRITER access when bootstrapping.
 
 No BI Engine capacity is required. Queries use the configured billing project and US location.
 
@@ -100,7 +100,7 @@ Routine refresh/status:
 
 Build completion does not mean embedding/index maintenance is complete. The status script reports pending/errors, index coverage and optional uncached hybrid query index usage for each of the three sources. Missing embeddings are omitted from AI.SEARCH. Use explicit `mode => 'HYBRID'`; results are relevant evidence, not exhaustive counts. ACTIVE alone does not prove acceleration; check coverage and query statistics.
 
-To migrate existing search tables from text-embedding-005 to Gemini Embedding 2, first deploy/sync the regulation parser, then run the following once. The reset drops only generated embeddings and their vector indexes; passage rows remain. Search is unavailable until the build recreates embeddings and background generation progresses. Do not use this reset for routine refreshes.
+The live Gemini Embedding 2 migration completed on 2026-10-19. For any remaining old deployment, first deploy/sync the regulation parser, then run the following once. The reset drops only generated embeddings and their vector indexes; passage rows remain. Search is unavailable until the build recreates embeddings and background generation progresses. Do not use this reset for routine refreshes.
 
 ```sh
 (cd dbt && python3 ../scripts/with_config.py dbt run-operation reset_document_embeddings --profiles-dir .)
