@@ -587,20 +587,20 @@ from unnest(array<struct<table_name string, measure_name string, sql_expression 
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 768)""",
-        r"""Chunks with a usable 768-dimensional embedding; compare with row_count to assess search coverage."""
+        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
+        r"""Chunks with a usable 3072-dimensional embedding; compare with row_count to assess search coverage."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 768)""",
-        r"""Chunks with a usable 768-dimensional embedding; compare with row_count to assess search coverage."""
+        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
+        r"""Chunks with a usable 3072-dimensional embedding; compare with row_count to assess search coverage."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 768)""",
-        r"""Chunks with a usable 768-dimensional embedding; compare with row_count to assess search coverage."""
+        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
+        r"""Chunks with a usable 3072-dimensional embedding; compare with row_count to assess search coverage."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",

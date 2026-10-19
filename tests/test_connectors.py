@@ -36,6 +36,50 @@ def test_raw_version_and_content_hash_distinguish_markup():
     assert m.sha(m.normalized(a)) == m.sha(m.normalized(b))
 
 
+def test_regulation_sections_follow_headings_across_pages(monkeypatch):
+    from types import SimpleNamespace
+
+    m = load("documents")
+    pages = [
+        "2025 Formula 1 Technical Regulations 1 26 February 2025\n"
+        "© 2025 Fédération Internationale de l’Automobile Issue 2\n"
+        "CONTENTS:\n1.1 General\nARTICLE 1: GENERAL\n1.1 General\n"
+        "1.1.1 First rule\n" + "A complete sentence. " * 150 + "\nContinues",
+        "2025 Formula 1 Technical Regulations 2 26 February 2025\n"
+        "© 2025 Fédération Internationale de l’Automobile Issue 2\n"
+        "on the next page.\n1.1.1.1 A deeper clause stays with its parent.\n"
+        "1.0 deg./s. is a measurement, not a heading.\n1.1.2 Second rule\n"
+        "Body.\n1.2 A section without a third level\nBody.\n"
+        "12.3.2 6.2mm Zylon Panel\nPanel text.\n"
+        "17.3.1 “Listed Team Components” are defined here.\n"
+        "APPENDIX 1\n1. Appendix heading\nAppendix body.",
+    ]
+    reader = SimpleNamespace(pages=[SimpleNamespace(extract_text=lambda t=t: t) for t in pages])
+    monkeypatch.setattr(m, "PdfReader", lambda _: reader)
+    _, _, blocks = m.extract(b"%PDF-test", {"document_type": "regulation", "title": "Rules"})
+    first = next(b for b in blocks if b["section"] == "1.1.1 First rule")
+    assert first["page_number"] == 1
+    assert len(first["text"].split()) > 120
+    assert "Continues\non the next page." in first["text"]
+    assert "1.1.1.1 A deeper clause" in first["text"]
+    assert "1.0 deg./s." in first["text"]
+    assert "1.1.2" not in first["text"]
+    assert next(b for b in blocks if b["section"] == "1.1.2 Second rule")["page_number"] == 2
+    assert next(b for b in blocks if b["section"] == "1.2 A section without a third level")["text"].endswith("Body.")
+    assert blocks[-1]["text"] == "1. Appendix heading\nAppendix body."
+    assert any(b["section"] == "12.3.2 6.2mm Zylon Panel" for b in blocks)
+    assert any(b["section"].startswith("17.3.1 “") for b in blocks if b["section"])
+    assert all("©" not in b["text"] and "2025 Formula 1" not in b["text"] for b in blocks)
+
+
+def test_regulation_empty_page_requires_review():
+    from types import SimpleNamespace
+
+    m = load("documents")
+    with pytest.raises(ValueError, match="Empty PDF page 1"):
+        m.regulation_sections(SimpleNamespace(pages=[SimpleNamespace(extract_text=lambda: "")]))
+
+
 def test_fia_single_paragraph_br_markup():
     m = load("documents")
     raw = (

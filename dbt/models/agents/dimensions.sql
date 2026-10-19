@@ -1002,37 +1002,37 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""source_position""",
         r"""INTEGER""",
-        r"""Zero-based block order within a document. Repeated across chunks; select chunk_index = 0 to read each complete text block once, ordered by source_position."""
+        r"""Zero-based passage order within a document. Each passage appears once; order by source_position to read sequentially."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""source_position""",
         r"""INTEGER""",
-        r"""Zero-based block order within a document. Repeated across chunks; select chunk_index = 0 to read each complete text block once, ordered by source_position."""
+        r"""Zero-based passage order within a document. Each passage appears once; order by source_position to read sequentially."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""source_position""",
         r"""INTEGER""",
-        r"""Zero-based block order within a document. Repeated across chunks; select chunk_index = 0 to read each complete text block once, ordered by source_position."""
+        r"""Zero-based passage order within a document. Each passage appears once; order by source_position to read sequentially."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""text""",
         r"""STRING""",
-        r"""Complete original source block, repeated for each of its chunks. Use chunk_text for a retrieved excerpt and text for its immediate context."""
+        r"""Complete source passage, identical to chunk_text. Read this full text for answer context, including any tail omitted from its embedding."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""text""",
         r"""STRING""",
-        r"""Complete original source block, repeated for each of its chunks. Use chunk_text for a retrieved excerpt and text for its immediate context."""
+        r"""Complete source passage, identical to chunk_text. Read this full text for answer context, including any tail omitted from its embedding."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""text""",
         r"""STRING""",
-        r"""Complete original source block, repeated for each of its chunks. Use chunk_text for a retrieved excerpt and text for its immediate context."""
+        r"""Complete source passage, identical to chunk_text. Read this full text for answer context, including any tail omitted from its embedding."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
@@ -1080,7 +1080,7 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""section""",
         r"""STRING""",
-        r"""Source section heading, when available; not a globally unique rule/article identifier."""
+        r"""Section heading through level three, or an article/appendix heading; null for unheaded front matter. Numbering can repeat in contents and appendices, so this is not a unique rule identifier."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
@@ -1098,7 +1098,7 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""page_number""",
         r"""INTEGER""",
-        r"""Source PDF page number, when available; not the block ordinal or chunk index."""
+        r"""PDF page where the section starts; its text can continue across later pages."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
@@ -1224,37 +1224,37 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""chunk_text""",
         r"""STRING""",
-        r"""Contiguous group of at most 120 whitespace-delimited words from the source block, with original whitespace retained."""
+        r"""Complete source passage, identical to text; no fixed word limit."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""chunk_text""",
         r"""STRING""",
-        r"""Contiguous group of at most 120 whitespace-delimited words from the source block, with original whitespace retained."""
+        r"""Complete semantic regulation section, split at numbered headings through level three (for example 1.1.1), with deeper clauses and page continuations retained. No fixed word limit."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""chunk_text""",
         r"""STRING""",
-        r"""Contiguous group of at most 120 whitespace-delimited words from the source block, with original whitespace retained."""
+        r"""Complete source passage, identical to text; no fixed word limit."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""chunk_index""",
         r"""INTEGER""",
-        r"""Zero-based chunk within the original block; ordered chunk_text concatenation reconstructs that block."""
+        r"""Always zero: each source passage is one complete search row."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""chunk_index""",
         r"""INTEGER""",
-        r"""Zero-based chunk within the original block; ordered chunk_text concatenation reconstructs that block."""
+        r"""Always zero: each source passage is one complete search row."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""chunk_index""",
         r"""INTEGER""",
-        r"""Zero-based chunk within the original block; ordered chunk_text concatenation reconstructs that block."""
+        r"""Always zero: each source passage is one complete search row."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
@@ -1314,18 +1314,18 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""embedding""",
         r"""RECORD""",
-        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (768 dimensions, text-embedding-005) and status STRING. NULL is pending; empty status and a 768-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings."""
+        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (3072 dimensions, gemini-embedding-2) and status STRING. NULL is pending; empty status and a 3072-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings. Oversized inputs are truncated by the embedding API; successful status does not imply the whole passage contributed to the vector."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""embedding""",
         r"""RECORD""",
-        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (768 dimensions, text-embedding-005) and status STRING. NULL is pending; empty status and a 768-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings."""
+        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (3072 dimensions, gemini-embedding-2) and status STRING. NULL is pending; empty status and a 3072-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings. Oversized inputs are truncated by the embedding API; successful status does not imply the whole passage contributed to the vector."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""embedding""",
         r"""RECORD""",
-        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (768 dimensions, text-embedding-005) and status STRING. NULL is pending; empty status and a 768-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings."""
+        r"""Semantic representation as a STRUCT with result ARRAY<FLOAT64> (3072 dimensions, gemini-embedding-2) and status STRING. NULL is pending; empty status and a 3072-element result indicate success; nonempty status reports an error. Never aggregate vector coordinates. AI.SEARCH skips missing embeddings. Oversized inputs are truncated by the embedding API; successful status does not imply the whole passage contributed to the vector."""
     )
 ])

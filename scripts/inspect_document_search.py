@@ -23,7 +23,7 @@ def main():
     queries = {
         "embeddings": " UNION ALL ".join(f"""
             SELECT '{kind}' AS source, COUNT(*) AS chunks,
-              COUNTIF(embedding.status = '' AND ARRAY_LENGTH(embedding.result) = 768) AS ready,
+              COUNTIF(embedding.status = '' AND ARRAY_LENGTH(embedding.result) = 3072) AS ready,
               COUNTIF(embedding IS NULL OR embedding.status IS NULL) AS pending,
               COUNTIF(embedding.status != '') AS errors
             FROM `{PROJECT}.f1.{kind}_passages_search`

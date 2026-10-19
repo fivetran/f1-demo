@@ -21,17 +21,9 @@ with passages as (
     where not coalesce(s._fivetran_deleted, false)
       and not coalesce(p._fivetran_deleted, false)
 ), chunks as (
-    select p.*, chunk.chunk_text, chunk.chunk_index
-    from passages as p,
-    -- Keep original whitespace and word boundaries. Avoid large bounded RE2
-    -- repetitions: BigQuery evaluates those very slowly on this corpus.
-    unnest(array(
-        select as struct div(word_index, 120) as chunk_index,
-            string_agg(word, '' order by word_index) as chunk_text
-        from unnest(regexp_extract_all(p.text, r'\s*\S+\s*|\s+'))
-            as word with offset as word_index
-        group by chunk_index
-    )) as chunk
+    -- Keep the connector's full passage. The embedding API handles overflow.
+    select p.*, p.text as chunk_text, 0 as chunk_index
+    from passages as p
 ), contextualized as (
     select c.* except(previous_text, next_text),
         to_hex(sha256(to_json_string(struct(

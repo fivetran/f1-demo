@@ -148,19 +148,19 @@ from unnest(array<struct<table_name string, description string, primary_key arra
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""One transcript search chunk, at most 120 words, with its complete original block and citation URL. Choose for press-conference quotes and race context; speaker labels are not resolved driver identities. Hybrid matches are relevant evidence, not exhaustive counts. Read each full block once with chunk_index = 0.""",
+        r"""One complete transcript passage with its citation URL; no fixed word limit. Choose for press-conference quotes and race context; speaker labels are not resolved driver identities. Hybrid matches are relevant evidence, not exhaustive counts. Read each full block once with chunk_index = 0.""",
         [r"""passage_id"""],
         r"""TRUE"""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""One regulation search chunk, at most 120 words, with its complete original block and citation URL. Choose for sporting/technical rules; check edition and effective dates before applying a rule. Hybrid matches are relevant evidence, not exhaustive counts. Read each full block once with chunk_index = 0.""",
+        r"""One complete regulation section and citation URL, bounded by numbered headings through level three and retaining page continuations. No fixed word limit. Choose for sporting/technical rules; check edition and effective dates before applying a rule. Hybrid matches are relevant evidence, not exhaustive counts. Read each full block once with chunk_index = 0.""",
         [r"""passage_id"""],
         r"""TRUE"""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""One glossary search chunk, at most 120 words, with its complete original block and citation URL. Choose for definitions and terminology; current glossary pages are not historical law. Hybrid matches are relevant evidence, not exhaustive counts. Read each full block once with chunk_index = 0.""",
+        r"""One complete glossary passage with its citation URL; no fixed word limit. Choose for definitions and terminology; current glossary pages are not historical law. Hybrid matches are relevant evidence, not exhaustive counts. Read each full block once with chunk_index = 0.""",
         [r"""passage_id"""],
         r"""TRUE"""
     )

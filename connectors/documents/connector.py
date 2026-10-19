@@ -18,6 +18,7 @@ from fivetran_connector_sdk import Operations as op
 from pypdf import PdfReader
 
 PARSER_VERSION = "6"
+REGULATION_PARSER_VERSION = "7"
 
 
 def sha(s):
@@ -97,10 +98,56 @@ class Fetcher:
         return r.content, meta
 
 
+def regulation_sections(reader):
+    """Keep numbered clauses through level three intact, including across pages."""
+    heading = re.compile(
+        r"^\s*(?:ARTICLE\s+\d+\s*:|APPENDIX\s+\d+\b|"
+        r"\d{1,2}\.\d{1,3}\.\d{1,3}\s+[0-9\"“‘]|"
+        r"\d{1,2}(?:\.\d{1,3}){0,2}[.)]?\s+[A-Z])"
+    )
+    blocks = []
+    lines = []
+    section = None
+    start_page = None
+
+    def flush():
+        if lines and "".join(lines).strip():
+            blocks.append(dict(text="".join(lines).strip(), page_number=start_page,
+                               section=section, speaker=None, question=None))
+        lines.clear()
+
+    for page_number, page in enumerate(reader.pages, 1):
+        text = page.extract_text() or ""
+        if not text.strip():
+            raise ValueError(f"Empty PDF page {page_number}; OCR/manual review required")
+        for line in text.splitlines(keepends=True):
+            # Running page furniture is not part of a rule. Keep other text,
+            # including front matter, contents, tables and appendix prose.
+            if re.match(r"^\s*\d{4} Formula 1 (?:Technical|Sporting) Regulations\b", line):
+                continue
+            if re.match(r"^\s*©\s*\d{4} F[ée]d[ée]ration Internationale de l.Automobile\b", line):
+                continue
+            if heading.match(line):
+                flush()
+                section = line.strip()[:160]
+                start_page = page_number
+            if start_page is None and line.strip():
+                start_page = page_number
+            lines.append(line)
+        # PDF pages need an explicit separator when their final line has none.
+        if lines and not lines[-1].endswith(("\n", "\r")):
+            lines.append("\n")
+    flush()
+    return blocks
+
+
 def extract(raw, item):
     if raw.startswith(b"%PDF"):
+        reader = PdfReader(io.BytesIO(raw))
+        if item.get("document_type") == "regulation":
+            return item["title"], item.get("published_at"), regulation_sections(reader)
         blocks = []
-        for n, p in enumerate(PdfReader(io.BytesIO(raw)).pages, 1):
+        for n, p in enumerate(reader.pages, 1):
             text = p.extract_text() or ""
             if not text.strip():
                 raise ValueError(f"Empty PDF page {n}; OCR/manual review required")
@@ -308,11 +355,12 @@ def update(configuration, state):
             op.checkpoint(state)
     for item in manifest:
         url, kind = item["url"], item["document_type"]
+        parser_version = REGULATION_PARSER_VERSION if kind == "regulation" else PARSER_VERSION
         parent, child = KINDS[kind]
         docid = sha(url)
         signature = sha(
             json.dumps(item, sort_keys=True)
-            + PARSER_VERSION
+            + parser_version
             + configuration.get("refresh_generation", "initial")
         )
         previous = completed.get(docid)
@@ -349,7 +397,7 @@ def update(configuration, state):
                 published_at=published,
                 source_hash=sha(raw),
                 content_hash=sha(normalized(text)),
-                parser_version=PARSER_VERSION,
+                parser_version=parser_version,
                 full_text=text,
                 section_count=len(blocks),
             )
