@@ -286,7 +286,7 @@ def delete_document(docid, previous):
 
 def update(configuration, state):
     base = Path(__file__).resolve().parent
-    manifest = json.loads((base / configuration.get("manifest_path", "manifest.json")).read_text())
+    manifest = json.loads((base / configuration.get("manifest_path", "manifest.full.json")).read_text())
     fetcher = Fetcher(
         str(base / configuration.get("cache_dir", ".cache")),
         configuration.get("refresh", "false").lower() == "true",

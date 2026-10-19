@@ -42,7 +42,7 @@
         as select * from agents_{{ name }} where false;
     {% endfor %}
 
-    -- Keep table identity/BI Engine preferences and other ROOT providers intact.
+    -- Keep table identity and other ROOT providers intact.
     begin transaction;
     {% for name in names %}
         delete from `{{ target.database }}.AGENTS.{{ name | upper }}`

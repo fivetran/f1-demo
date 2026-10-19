@@ -1,11 +1,11 @@
 {{ config(materialized='view') }}
 
 with passages as (
-    select * from {{ ref('transcript_search_source') }}
+    {{ document_search_source('transcript', 'transcript_passages', 'transcripts') }}
     union all
-    select * from {{ ref('regulation_search_source') }}
+    {{ document_search_source('regulation', 'regulation_sections', 'regulations') }}
     union all
-    select * from {{ ref('glossary_search_source') }}
+    {{ document_search_source('glossary', 'glossary_sections', 'glossary') }}
 ), chunks as (
     select p.*, chunk.chunk_text, chunk.chunk_index
     from passages as p,

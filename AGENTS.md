@@ -5,19 +5,18 @@ Keep this project small. The user explicitly requested a minimalist implementati
 ## Architecture and boundaries
 
 - Two Fivetran SDK connectors load typed OpenF1 endpoint tables and readable document tables. No generic payload/snapshot architecture.
-- dbt builds the approved [normalized model](PROPOSED_MODEL.md) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
+- dbt builds the approved [normalized models](dbt/models/openf1/) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
 - Document search uses BigQuery-managed embeddings and a hybrid index, maintained by dbt. Five metadata seeds publish exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
 - OpenF1 covers 2025 and completed 2026 races; document coverage remains 2025. The authorized season replacement already completed; it is not permission for future truncations. No recurring schedule exists.
-- [SCHEMA.md](SCHEMA.md) describes ingestion. [inventory/](inventory/) retains historical schema/profiling/validation evidence; these snapshots are not checks to repeat on every change.
+- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. [The catalog](agents/catalog.yml) documents finished table grains, joins and limitations.
 
 ## Accounts and tools
 
-- Account IDs, billing IDs, connection IDs, service-account emails and the private agent URL belong in the ignored root `.env`. Start from [.env.example](.env.example). Never copy actual values into tracked files. Historical deployment details are retained locally in ignored `infra/deployment.json` and inventory reports.
-- Python operational scripts load `.env` automatically; exported variables take precedence. Run Fusion through `../scripts/with_config.py` from `dbt`, or export the settings first. Hosted dbt must supply `F1_GCP_PROJECT` and `DBT_CLOUD_PROJECT_ID` through its environment.
+- Account IDs, billing IDs, connection IDs, service-account emails and the private agent URL belong in the ignored root `.env`. Start from [.env.example](.env.example). Never copy actual values into tracked files. Historical deployment details are retained locally in ignored `infra/deployment.json`.
+- Python operational scripts load `.env` automatically; exported variables take precedence. Run Fusion through `../scripts/with_config.py` from `dbt`, or export the settings first. Local Fusion is the supported execution path.
 - Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1`, `f1_agents_seed` and `AGENTS`; ingestion identities own the source datasets.
-- The hosted dbt job parses an older published revision; local changes do not update it automatically.
-- Credentials stay outside the repository in `~/.config/f1-demo/credentials.json` (0600); dbt Cloud login is `~/.dbt/dbt_cloud.yml`. BigQuery/Fusion use Google application-default credentials. Named gcloud login is separate. Never print tokens, full credential responses or credential-bearing subprocess arguments.
-- Python 3.12.8, Connector SDK 2.12.1, Fivetran CLI 1.0.0, dbt Fusion 2.0.8. Use the pinned requirements and existing `.venv`; do not replace Fusion with Python dbt-core 1.x. CLIs are also in `~/.local/bin`.
+- Credentials stay outside the repository in `~/.config/f1-demo/credentials.json` (0600). BigQuery/Fusion use Google application-default credentials. Named gcloud login is separate. Never print tokens, full credential responses or credential-bearing subprocess arguments.
+- Python 3.12.8, Connector SDK 2.12.1, Fivetran CLI 1.0.0, dbt Fusion 2.0.8. Use the pinned requirements and `.venv` (create it with Python 3.12.8 if absent); do not replace Fusion with Python dbt-core 1.x. CLIs are also in `~/.local/bin`.
 - Remote: [fivetran/f1-demo](https://github.com/fivetran/f1-demo), dbt subdirectory `dbt`. `/tmp/f1-demo-publish` is a publishing checkout. Publish only nonignored files; exclude caches, environments, debugger files and credentials.
 
 ## Routine work
@@ -30,7 +29,7 @@ Run Fusion from the `dbt` directory (required for seed paths), with four threads
 
 Use `--select tag:document_search` or `--select tag:agents_schema` for focused work. `dbt parse` checks project parsing without rebuilding tables. Retained tests cover shared keys/identity coverage and document chunk reconstruction. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
 
-[run_pipeline.py](scripts/run_pipeline.py) uses [.env.example](.env.example) variables to force Fivetran syncs, wait for success, then run local Fusion or the configured dbt Cloud job. `--wait-existing` waits for an already-started sync. [inspect_bigquery.py](scripts/inspect_bigquery.py) is an optional ingestion diagnostic that refreshes source schema artifacts, not part of routine builds.
+[run_pipeline.py](scripts/run_pipeline.py) uses [.env.example](.env.example) variables to force Fivetran syncs, wait for success, then run local Fusion. `--wait-existing` waits for an already-started sync.
 
 A small run-start hook restricts dbt to this project's `f1` target. It clears historical partition expiration only when time-series models are selected: a former 60-day dataset default immediately expired the 2025 data. Do not reintroduce retention or change source dataset retention.
 
@@ -39,12 +38,13 @@ A small run-start hook restricts dbt to this project's `f1` target. It clears hi
 - OpenF1 accepts comma-separated `years` (legacy `year` still works); production uses `2025,2026`. Calendar metadata refreshes each sync. Detail checkpoints retain their generation across season additions, and only noncancelled Race sessions ending at least 30 minutes ago are eligible. **Starting grids use main Qualifying session keys**; associate them with Race through the meeting, without fabricating Qualifying driver entries. Sprint Qualifying is excluded.
 - Presentation metadata uses the latest non-null driver headshot by session time and the latest calendar meeting for circuit URLs/locality. Other conflicting identity attributes still fail key tests.
 - Driver numbers identify entries within a session, not permanent people. Computed IDs use normalized source names and season mappings; spelling changes/cross-season continuity need deliberate reconciliation. Team colours belong in `team_sessions`. Source driver country codes are all null.
+- Normalization keeps one concept and grain per table. Driver standings may lack same-session entries and join people directly; no Qualifying entries are fabricated. Facts preserve source values without rounding, clamping or inferred lap associations. Overtakes include pit-stop/penalty exchanges and may be incomplete; race-control driver references are optional.
 - Preserve all telemetry samples, including pre/post-race timestamps. Fetch car/location data per driver/session; pace OpenF1 calls at least 2.1 seconds apart and do not run competing crawlers. Retry 429/5xx/transient failures.
 - `sync_status` records completed scopes and source availability. `unavailable_404` means unavailable, not zero events. Query completed syncs for consistency.
 - Gaps such as `+1 LAP` remain strings; sector segments remain JSON arrays. Race result duration is scalar. Fivetran renames speed fields to `i_1_speed` and `i_2_speed`. Always qualify projected source columns: bare `position` can resolve to a whole-row STRUCT in BigQuery.
 - A refresh generation refetches/upserts OpenF1; it does not remove disappeared rows. An authorized season replacement requires pausing, full resync/empty state, explicit table truncation and resumption. Do not infer deletion reconciliation from an SDK resync alone.
 - Documents have parent and ordered section tables. Changed documents remove obsolete sections; removed manifests/404/410 remove current documents. Download/parse failures retain the previous good document and fail the sync for retry.
-- Reuse the checked document manifest. FIA requests follow robots.txt and a ten-second interval; do not overlap crawlers. Discovery utilities accept `--year`; [transcript_extra_urls.json](inventory/transcript_extra_urls.json) supplies eight 2025 URLs without a year in their path.
+- Reuse the checked [document manifest](connectors/documents/manifest.full.json). FIA requests follow robots.txt and a ten-second interval; do not overlap crawlers.
 - Speaker labels come from markup, not person resolution. Publication dates are not event/effective dates. Unknown regulation effective dates remain null, and current glossary pages are not historical 2025 law.
 - Do not advertise inclusive lap/stint ranges as many-one: observed overlaps make them ambiguous. Independent telemetry feeds need explicit time alignment. Preserve unexpected telemetry codes rather than clamping them. Championship checkpoints are source snapshots, not reconciled race-point facts. Detailed query limitations are in [agents/catalog.yml](agents/catalog.yml).
 
@@ -67,7 +67,7 @@ Commit the five generated CSVs with their authoring inputs. Keep `__F1_GCP_PROJE
 
 ROOT follows `provider, key, content` with provider `f1`; the four other tables are the custom dimensional extension. Keep their canonical uppercase names. Fusion cannot load quoted multiline CSV cells, so ROOT text is JSON-encoded in CSV and decoded with JSON_VALUE; primary keys similarly use JSON_VALUE_ARRAY. [Seed types](dbt/seeds/agents/schema.yml) are explicit STRINGs. [configure_agents_access.py](scripts/configure_agents_access.py) grants the two metadata dataset WRITER entries when bootstrapping.
 
-The US BI Engine reservation has **1 GiB**, preferring exactly the five AGENTS tables. [infra/agents_bi_engine.sql](infra/agents_bi_engine.sql) manages it outside dbt. Do not expand capacity/preferred tables without a request; reapplying SET OPTIONS replaces settings. Queries must use this billing project and US. Check job statistics before claiming acceleration.
+No BI Engine capacity is required. Queries use the configured billing project and US location.
 
 ## Browser analytics agent
 
@@ -79,7 +79,7 @@ The US BI Engine reservation has **1 GiB**, preferring exactly the five AGENTS t
 
 [Search models](dbt/models/search/) merge changed chunks into `f1.document_passages_search` and delete obsolete chunks. Each chunk has at most 120 whitespace-delimited words; concatenation preserves every original character. `embedding_text` adds bounded title/heading/speaker/question and neighboring glossary context. The original text remains available; read each block once with `chunk_index = 0`, ordered by `source_position` within document type/id.
 
-[Search hooks](dbt/macros/document_search.sql) create an asynchronous AI.EMBED column using `text-embedding-005` (768 dimensions), plus `document_passages_hybrid` (IVF/COSINE, lexical_search_columns=['embedding_text']). Hybrid search is Preview. No standalone search index or extra BI Engine allocation is used.
+[Search hooks](dbt/macros/document_search.sql) create an asynchronous AI.EMBED column using `text-embedding-005` (768 dimensions), plus `document_passages_hybrid` (IVF/COSINE, lexical_search_columns=['embedding_text']). Hybrid search is Preview. No standalone search index is used.
 
 One-time setup:
 

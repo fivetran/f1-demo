@@ -2,8 +2,6 @@ name: f1_demo
 version: 3.0.0
 config-version: 2
 profile: f1_demo
-dbt-cloud:
-  project-id: "{{ env_var('DBT_CLOUD_PROJECT_ID', '0') | int }}"
 model-paths:
 - models
 test-paths:

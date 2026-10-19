@@ -30,9 +30,9 @@ Measures use `t` for the base relation; join predicates use `l` for `from_table`
 
 The [catalog](catalog.yml) covers 24 finished OpenF1 tables and the document-search table, all in `f1`. Source document tables, the two internal identity lookups and the search preparation view are excluded from query discovery. Document examples read full blocks and adjacent context directly from the search table. The [ROOT guidance](ROOT.md) contains the scope, aggregation and hybrid-retrieval rules; [twenty motivating questions](QUESTIONS.md) describe coverage; [query examples](queries/) also demonstrate hybrid retrieval of transcripts, regulations and glossary passages.
 
-The schema deliberately omits unsafe relationships: inclusive lap/stint matching is ambiguous on 80 laps; independent sampled feeds require explicit time alignment; textual speaker labels do not establish person identity. The catalog also records observed telemetry codes outside documented ranges and the difference between source championship snapshots and classified results. Historical profiling evidence is retained locally in ignored inventory reports. OpenF1 units and documented codes were checked against its [API reference](https://openf1.org/docs/); observations of actual values take precedence over assumed ranges.
+The schema deliberately omits unsafe relationships: inclusive lap/stint matching is ambiguous on 80 laps; independent sampled feeds require explicit time alignment; textual speaker labels do not establish person identity. The catalog also records observed telemetry codes outside documented ranges and the difference between source championship snapshots and classified results. OpenF1 units and documented codes were checked against its [API reference](https://openf1.org/docs/); observations of actual values take precedence over assumed ranges.
 
-Publication is owned by dbt. Five [CSV seeds](../dbt/seeds/agents) load into `f1_agents_seed`, then a small [transactional hook](../dbt/macros/publish_agents.sql) updates the five public tables. It resolves `__F1_GCP_PROJECT__` to the configured target project, decodes ROOT text and primary-key arrays, preserves other ROOT providers and retains table identity/BI Engine preferences.
+Publication is owned by dbt. Five [CSV seeds](../dbt/seeds/agents) load into `f1_agents_seed`, then a small [transactional hook](../dbt/macros/publish_agents.sql) updates the five public tables. It resolves `__F1_GCP_PROJECT__` to the configured target project, decodes ROOT text and primary-key arrays, preserves other ROOT providers and retains table identity.
 
 After editing the authoring inputs, run from the repository root:
 
@@ -42,5 +42,3 @@ After editing the authoring inputs, run from the repository root:
 ```
 
 Commit the generated seeds with the catalog changes. A full `dbt build` also publishes after all selected nodes succeed; partial seed batches fail and failed invocations skip publication. Production dbt reads committed seeds without Python. Publication does not revalidate the racing data or execute every example query.
-
-The project's US BI Engine reservation has 1 GiB and prefers exactly the five AGENTS tables. It is configured outside dbt by [infrastructure SQL](../infra/agents_bi_engine.sql). Queries must run in billing project `__F1_GCP_PROJECT__`, location US. Reservation membership does not guarantee acceleration for every query; use job statistics to check. See [operations](../AGENTS.md) for access and setup.
