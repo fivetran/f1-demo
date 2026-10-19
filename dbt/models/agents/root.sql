@@ -7,7 +7,7 @@ select
 
 Start with AGENTS.TABLES, then look up DIMENSIONS, MEASURES and JOINS. AGENTS.ROOT contains one row with provider `user`, key `user`, and this Markdown document. Four dimensional metadata tables describe the finished data. The specification is pinned at https://github.com/dbt-labs/agents_schema/blob/a0bc90498302c8abb15a5e98a54c8c94df5a52f8/SPEC.md. Physical names use canonical uppercase AGENTS; data table names remain lowercase.
 
-The catalog describes the finished query tables in `{{ target.database }}.f1`: normalized racing data and searchable documents. Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All five metadata tables describe data; none copies race measurements or document bodies.
+The catalog describes the finished query tables in `{{ target.database }}.f1` (racing data) and `{{ target.database }}.f1_documents` (documents). Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All five metadata tables describe data; none copies race measurements or document bodies.
 
 DIMENSIONS documents every physical column, including numeric observations usable as row-level filters. Merely being numeric does not make a column summable. MEASURES provides the deliberate aggregate expressions and their restrictions. Use alias `t` when applying an aggregate or row_filter. JSON mini-sector arrays remain raw data, not inferred timing measures.
 
@@ -31,17 +31,15 @@ Drivers are people, teams are named team identities, and session_entries assigns
 
 ## Documents
 
-Transcript coverage remains 2025; do not infer 2026 document coverage from racing tables. Choose `transcript_passages_search` for press-conference quotes, `regulation_passages_search` for rules, and `glossary_passages_search` for definitions. Query the relevant table directly; for questions spanning sources, search each relevant table separately and synthesize the cited evidence. Each row carries document metadata and citation URL alongside the complete passage in `text`. Read passages in order by `source_position` within `(document_type, document_id)`. To retrieve adjacent context, query the same table for the neighboring source positions. A block is not necessarily one article, glossary term or utterance. Use distinct document keys for document counts. Transcript meeting associations retain `association_method` provenance. Explicit speaker labels are text, not verified driver identities; do not join on a mentioned name.
+Transcript coverage remains 2025. Search `f1_documents.transcript_passages` for quotes, `f1_documents.regulation_sections` for rules, and `f1_documents.glossary_sections` for definitions. Each collection has its own schema. Join passages to their parent (`transcripts`, `regulations`, or `glossary`) on `document_id` to obtain title, source_url and collection-specific metadata. Join transcripts to `f1.meetings` for race context. Always exclude `_fivetran_deleted` on both passages and parents. Speaker labels are not verified identities.
 
-Regulation editions require applicability assessment; published_at does not prove an article's effective date, and unknown effective dates stay unknown. Current glossary pages explain terminology but are not historical 2025 law. No season-only regulation-to-race join or inferred speaker-to-driver join is declared.
+Read the complete `text` and retrieve neighboring passages ordered by the qualified column `p.position` within a document. Regulation sections follow headings through level three (1.1.1), retaining deeper clauses and page continuations. Section numbers may repeat. Glossary sections follow HTML headings. Publication dates are not event/effective dates; unknown regulation effective dates remain null. Current glossary pages are not historical law.
 
 ## Hybrid document retrieval
 
-Use `f1.transcript_passages_search`, `f1.regulation_passages_search`, or `f1.glossary_passages_search` according to the question. Each has its own embeddings and supports hybrid search. Small sources can be searched without an index. Search `embedding_text`; return `text` with document metadata for context and citation. A usable embedding has empty status and a 3072-element result. NULL embeddings are unavailable for search, and nonempty status indicates an error. Compare embedding_ready_count with row_count to assess how much of the selected corpus is searchable.
+Use `AI.SEARCH` with the collection's passage table, search column `text`, and explicit `mode => 'HYBRID'`. Search each relevant collection separately for cross-source questions. Join the results to their parent for citations and applicability. Parent metadata is not duplicated in passage rows; filter parent criteria through document_id when restricting retrieval. Small sources support hybrid search without an index.
 
-Use ``AI.SEARCH(TABLE `{{ target.database }}.f1.transcript_passages_search`, 'embedding_text', 'your question', mode => 'HYBRID', top_k => 5)`` for transcript evidence; substitute the regulation or glossary table when appropriate. Explicit HYBRID avoids AUTO silently selecting semantic-only search. All three tables store document_id, source_position and speaker_label for prefiltering; transcripts additionally store meeting_key and conference_type, and regulations store rule_family and applicable_season. Do not refer to transcript columns in the regulation/glossary tables or regulation columns in the other tables. A speaker label is not a verified identity; a regulation season is not proof of applicability.
-
-Regulation search uses complete numbered sections through level three (such as 1.1.1), retaining deeper clauses and continuations across PDF pages. Each regulation section has no fixed word limit; page_number is its starting page. Article/appendix headings and unheaded front matter are also retained. Contents can repeat section numbers. Transcript and glossary search also keep each complete source passage in one row. Deduplicate `(document_type, document_id, source_position)` when counting blocks, or `(document_type, document_id)` when counting documents. Gemini Embedding 2 embeds up to 8,192 input tokens; the API truncates oversized embedding inputs, while the complete passage remains stored and should be read for answer context. Successful embedding status does not prove full-text semantic coverage. `embedding_text` includes bounded contextual material; glossary context can mention neighboring definitions. Inspect the full `text` passage, read adjacent positions in this table when needed, and cite `source_url`. Hybrid matches and their semantic distances are not exhaustive fact counts or calibrated confidence scores. The output order is not guaranteed. AI.SEARCH omits rows without embeddings; check readiness when freshness matters. The query examples below illustrate all three topics.
+Gemini Embedding 2 embeds up to 8,192 input tokens, truncating oversized inputs while the complete text remains stored for RAG. A usable embedding has empty status and a 3072-element result. Missing embeddings are omitted from search; compare embedding_ready_count with row_count when freshness matters. Hybrid matches are relevant evidence, not exhaustive counts or calibrated confidence scores. Always inspect full text and cite the parent's source_url.
 
 ## Findings from warehouse profiling
 
@@ -49,7 +47,7 @@ The current 2025 checkpoint feed disagrees with classified Race result point cha
 
 The 2025 car samples include 1,160,081 brake codes of 104 and 1,157,156 throttle values above 100. The braking fraction uses only documented 0/100 codes, and the throttle mean uses only values in 0..100; always report their coverage measures. Gear codes exceed 8 on 474 samples, including within scheduled Race windows. Do not silently clamp these codes or infer their physical meaning. Some 5,604,947 car samples fall outside the scheduled session interval; retain them but select an explicit analysis window.
 
-Glossary speaker labels can be section labels such as Example. They are not people. Regulation and glossary question fields, and regulation speaker fields, are all null in this corpus. All eight regulation editions have unknown effective_from/effective_to dates. These observations describe the current data; check the relevant fields for the subset you query.
+All eight regulation editions have unknown effective_from/effective_to dates. Check applicability for the subset you query.
 
 ## Metadata tables
 
@@ -84,9 +82,9 @@ This coverage checklist restates the exploratory topics for the new catalog; it 
 | 15 | How did the gaps to the leader evolve? | intervals numeric gap averages plus numeric coverage; preserve +1 LAP labels; explicit time windows. |
 | 16 | What were race weather conditions, and did it rain? | weather average temperatures and rainy_sample_fraction -> sessions; sample statistics, not duration/depth. |
 | 17 | Which flags and race-control messages occurred around an incident? | race_control messages with optional entry/lap joins; explicit time window for other feeds; message count is not incident duration. |
-| 18 | What did drivers say after a difficult race, and what radio clips are available? | transcript_passages_search -> meetings; read text once per source_position with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
-| 19 | What do racing terms mean, and what did the relevant regulation edition say? | glossary_passages_search or regulation_passages_search; inspect full text blocks and edition/applicability, cite sources, no season-only legal join. |
-| 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status unavailable_scope_count / reported_source_rows for racing coverage; each chosen search table's document_count / source_block_count and embedding_ready_count for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
+| 18 | What did drivers say after a difficult race, and what radio clips are available? | transcript_passages -> transcripts -> meetings; read text once per position with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
+| 19 | What do racing terms mean, and what did the relevant regulation edition say? | glossary_sections -> glossary or regulation_sections -> regulations; inspect full text blocks and edition/applicability, cite sources, no season-only legal join. |
+| 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status unavailable_scope_count / reported_source_rows for racing coverage; document parent row_count and passage row_count / embedding_ready_count for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
 
 # Query examples
 
@@ -185,13 +183,19 @@ JOIN `{{ target.database }}.f1.sync_status` AS coverage
 Question: Explain dirty air and loss of downforce when following another car, using glossary sources.
 
 ```sql
-select base.document_id, base.source_position,
-       base.title, base.text, base.embedding_text, base.source_url, distance
+select hits.base.document_id, hits.base.position, d.title,
+       hits.base.text, d.source_url, hits.distance
 from ai.search(
-    (select * from `{{ target.database }}.f1.glossary_passages_search`),
-    'embedding_text', 'dirty air and loss of downforce when following another car',
-    mode => 'HYBRID', top_k => 5
-)
+    (select p.* from `{{ target.database }}.f1_documents.glossary_sections` p
+     where not coalesce(p._fivetran_deleted, false)
+       and p.document_id in (
+           select d.document_id from `{{ target.database }}.f1_documents.glossary` d
+           where not coalesce(d._fivetran_deleted, false))),
+    'text', 'dirty air and loss of downforce when following another car', mode => 'HYBRID', top_k => 5
+) hits
+join `{{ target.database }}.f1_documents.glossary` d
+  on hits.base.document_id = d.document_id
+where not coalesce(d._fivetran_deleted, false)
 ```
 
 ## search_regulations
@@ -199,15 +203,19 @@ from ai.search(
 Question: Find regulations about leaving the track and gaining a lasting advantage, with citations.
 
 ```sql
--- Retrieve evidence across editions; assess applicability before applying a rule.
-select base.document_id, base.source_position,
-       base.title, base.rule_family, base.effective_from, base.effective_to,
-       base.text, base.source_url, distance
+select hits.base.document_id, hits.base.position, d.title,
+       hits.base.text, d.source_url, d.rule_family, d.effective_from, d.effective_to, hits.distance
 from ai.search(
-    (select * from `{{ target.database }}.f1.regulation_passages_search`),
-    'embedding_text', 'leaving the track and gaining a lasting advantage',
-    mode => 'HYBRID', top_k => 5
-)
+    (select p.* from `{{ target.database }}.f1_documents.regulation_sections` p
+     where not coalesce(p._fivetran_deleted, false)
+       and p.document_id in (
+           select d.document_id from `{{ target.database }}.f1_documents.regulations` d
+           where not coalesce(d._fivetran_deleted, false))),
+    'text', 'leaving the track and gaining a lasting advantage', mode => 'HYBRID', top_k => 5
+) hits
+join `{{ target.database }}.f1_documents.regulations` d
+  on hits.base.document_id = d.document_id
+where not coalesce(d._fivetran_deleted, false)
 ```
 
 ## search_transcripts
@@ -215,31 +223,35 @@ from ai.search(
 Question: Find post-race comments about tyre degradation and managing tyres, with citations.
 
 ```sql
--- Hybrid retrieval selects relevant evidence; distance is semantic distance,
--- not a calibrated confidence or a documented combined ranking score.
-select base.document_id, base.source_position,
-       base.title, base.speaker_label, base.question, base.text,
-       base.source_url, distance
+select hits.base.document_id, hits.base.position, d.title,
+       hits.base.text, d.source_url, hits.base.speaker, hits.base.question, hits.distance
 from ai.search(
-    (select * from `{{ target.database }}.f1.transcript_passages_search`
-     where conference_type = 'post-race'),
-    'embedding_text', 'tyre degradation and managing the tyres during the race',
-    mode => 'HYBRID', top_k => 5
-)
+    (select p.* from `{{ target.database }}.f1_documents.transcript_passages` p
+     where not coalesce(p._fivetran_deleted, false)
+       and p.document_id in (
+           select d.document_id from `{{ target.database }}.f1_documents.transcripts` d
+           where not coalesce(d._fivetran_deleted, false) AND d.conference_type = 'post-race')),
+    'text', 'tyre degradation and managing the tyres during the race', mode => 'HYBRID', top_k => 5
+) hits
+join `{{ target.database }}.f1_documents.transcripts` d
+  on hits.base.document_id = d.document_id
+where not coalesce(d._fivetran_deleted, false)
 ```
 
 ## transcript_context
 
-Question: Show original transcript blocks mentioning tyres, with their race context.
+Question: Show original transcript passages mentioning tyres, with their race context.
 
 ```sql
--- Each row holds one full passage.
-SELECT p.document_id, p.source_url, p.title, p.conference_type, p.association_method,
-  m.meeting_name, p.source_position, p.speaker_label, p.question, p.text
-FROM `{{ target.database }}.f1.transcript_passages_search` AS p
-LEFT JOIN `{{ target.database }}.f1.meetings` AS m USING (meeting_key)
-WHERE LOWER(COALESCE(p.text, '')) LIKE '%tyre%'
-ORDER BY p.document_id, p.source_position
-LIMIT 100
+select p.document_id, d.source_url, d.title, d.conference_type, d.association_method,
+       m.meeting_name, p.position, p.speaker, p.question, p.text
+from `{{ target.database }}.f1_documents.transcript_passages` p
+join `{{ target.database }}.f1_documents.transcripts` d on p.document_id = d.document_id
+left join `{{ target.database }}.f1.meetings` m on d.meeting_key = m.meeting_key
+where not coalesce(p._fivetran_deleted, false)
+  and not coalesce(d._fivetran_deleted, false)
+  and lower(p.text) like '%tyre%'
+order by p.document_id, p.position
+limit 100
 ```
 """ as content

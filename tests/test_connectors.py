@@ -28,14 +28,6 @@ def test_question_context_and_speaker_do_not_follow_mentions():
     assert all(b["speaker"] != "Lewis" for b in blocks)
 
 
-def test_raw_version_and_content_hash_distinguish_markup():
-    m = load("documents")
-    a = " ".join(["a"] * 200)
-    b = "\n".join(["a"] * 200)
-    assert m.sha(a) != m.sha(b)
-    assert m.sha(m.normalized(a)) == m.sha(m.normalized(b))
-
-
 def test_regulation_sections_follow_headings_across_pages(monkeypatch):
     from types import SimpleNamespace
 
@@ -398,3 +390,26 @@ def test_discovery_failure_does_not_delete_or_checkpoint(monkeypatch, tmp_path):
     with pytest.raises(RuntimeError, match='sitemap unavailable'):
         m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_years='2025'), state)
     assert not events and 'old' in state['documents']
+
+
+def test_document_collections_have_native_fields():
+    m = load('documents')
+    tables = {s['table']: s['columns'] for s in m.schema({})}
+    assert 'speaker' in tables['transcript_passages']
+    assert 'page_number' not in tables['transcript_passages']
+    assert 'page_number' in tables['regulation_sections']
+    assert 'speaker' not in tables['regulation_sections']
+    assert 'question' not in tables['glossary_sections']
+    for columns in tables.values():
+        assert not {'content_hash', 'source_hash', 'parser_version', 'full_text', 'section_count', 'embedding'} & columns.keys()
+
+
+def test_glossary_groups_headings_without_interview_parsing():
+    m = load('documents')
+    explanation = 'Example: Air disturbed by the car ahead reduces downforce. ' * 5
+    raw = f'<main><h2>Dirty air</h2><p>{explanation}</p><h2>Downforce</h2><p>Vertical aerodynamic force.</p></main>'.encode()
+    _, _, blocks = m.extract(raw, {'document_type': 'glossary'})
+    assert len(blocks) == 2
+    assert blocks[0]['section'] == 'Dirty air'
+    assert 'Example:' in blocks[0]['text']
+    assert 'speaker' not in blocks[0]

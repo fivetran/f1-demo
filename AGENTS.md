@@ -6,7 +6,7 @@ Keep this project small. The user explicitly requested a minimalist implementati
 
 - Two Fivetran SDK connectors load typed OpenF1 endpoint tables and readable document tables. No generic payload/snapshot architecture.
 - dbt builds the approved [normalized models](dbt/models/openf1/) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
-- Document search uses BigQuery-managed embeddings and a hybrid index, maintained by dbt. Five inline SQL models build exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
+- Document search uses BigQuery-managed embeddings and hybrid indexes directly on source passage tables, installed by an idempotent dbt DDL hook. There are no dbt document models. Five inline SQL models build exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
 - OpenF1 covers 2025 and completed 2026 races; document coverage remains 2025. The authorized season replacement already completed; it is not permission for future truncations. No recurring schedule exists.
 - Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. Maintain source YAML directly when connector schemas change; there is no source generator. [The catalog models](dbt/models/agents/) document finished table grains, joins and limitations.
 
@@ -14,7 +14,7 @@ Keep this project small. The user explicitly requested a minimalist implementati
 
 - Account IDs, billing IDs, connection IDs, service-account emails and the private agent URL belong in the ignored root `.env`. Start from [.env.example](.env.example). Never copy actual values into tracked files. Historical deployment details are retained locally in ignored `infra/deployment.json`.
 - Python operational scripts load `.env` automatically; exported variables take precedence. Run Fusion through `../scripts/with_config.py` from `dbt`, or export the settings first. Local Fusion is the supported execution path.
-- Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1` and `AGENTS`; ingestion identities own the source datasets.
+- Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1` and `AGENTS`; its document hook also needs permission to add generated columns and indexes in `f1_documents`. Ingestion owns all source row updates.
 - Credentials stay outside the repository in `~/.config/f1-demo/credentials.json` (0600). BigQuery/Fusion use Google application-default credentials. Named gcloud login is separate. Never print tokens, full credential responses or credential-bearing subprocess arguments.
 - Python 3.12.8, Connector SDK 2.12.1, Fivetran CLI 1.0.0, dbt Fusion 2.0.8. Use the pinned requirements and `.venv` (create it with Python 3.12.8 if absent); do not replace Fusion with Python dbt-core 1.x. CLIs are also in `~/.local/bin`.
 - Remote: [fivetran/f1-demo](https://github.com/fivetran/f1-demo), dbt subdirectory `dbt`. `/tmp/f1-demo-publish` is a publishing checkout. Publish only nonignored files; exclude caches, environments, debugger files and credentials.
@@ -27,7 +27,7 @@ Run Fusion from the `dbt` directory, with four threads:
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --threads 4 --no-manage-state)
 ```
 
-Use `--select tag:document_search` or `--select tag:agents_schema` for focused work. `dbt parse` checks project parsing without rebuilding tables. Retained tests cover shared keys/identity coverage and exact source-passage preservation. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
+Use `--select tag:agents_schema` for focused catalog work; `run-operation ensure_document_indexes` installs document search without modeling data. `dbt parse` checks project parsing without rebuilding tables. Retained tests cover shared keys/identity coverage and connector behavior. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
 
 [run_pipeline.py](scripts/run_pipeline.py) uses [.env.example](.env.example) variables to force Fivetran syncs, wait for success, then run local Fusion. `--wait-existing` waits for an already-started sync.
 
@@ -54,7 +54,8 @@ Deploy from the connector directory with the SDK environment on PATH. OpenF1 use
 
 ## Minimal Agents Schema
 
-AGENTS is **reader guidance for finished tables only**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. Exclude source datasets, identity lookup models, the three search-input views, and connector/dbt implementation details. The catalog covers 24 finished OpenF1 tables plus `f1.transcript_passages_search`, `f1.regulation_passages_search`, and `f1.glossary_passages_search` (27 finished tables).
+AGENTS is **reader guidance for query tables**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. It covers 24 finished OpenF1 tables and the six native document tables in `f1_documents` (30 tables). Document parent tables hold metadata and passage tables hold text. Exclude identity lookup models and connector/dbt implementation details. Filter `_fivetran_deleted` in both document parent and child tables.
+
 
 Edit the five [SQL models](dbt/models/agents/) directly; they are the source of truth. [root.sql](dbt/models/agents/root.sql) selects one `user`/`user` row with the complete Markdown document in a raw triple-quoted SQL string. The other four models use typed inline rows; TABLES.primary_key is a native ARRAY<STRING>. Keep query examples in ROOT in the `## name`, `Question: ...`, fenced SQL format used by the agent configuration and search inspector.
 
@@ -78,37 +79,21 @@ No BI Engine capacity is required. Queries use the configured billing project an
 
 ## Managed document search
 
-[Search models](dbt/models/search/) maintain separate `f1.transcript_passages_search`, `f1.regulation_passages_search`, and `f1.glossary_passages_search` tables, each with an input view, incremental merge, and obsolete-passage deletion. The agent chooses the source table; cross-source questions use separate searches. Only transcripts expose meeting/conference fields; regulation applicability fields stay on regulations, with applicability_status also on glossary. Regulation parser version 7 groups PDF text at numbered headings through level three (e.g. 1.1.1), retaining deeper clauses and page continuations, and removes recognized running page headers. Article/appendix headings and unheaded front matter remain searchable; numbering can repeat in contents and appendices. dbt uses each regulation section intact as one passage, with no word cap. Transcript/glossary passages are also retained whole. There is no dbt word splitting or text truncation. Gemini Embedding 2 truncates oversized embedding inputs at its 8,192-token limit; the full text remains available for RAG, but the truncated tail does not contribute to semantic matching. `embedding_text` adds bounded title/heading/speaker/question and neighboring glossary context. The original text remains available; read passages ordered by `source_position` within document type/id.
+The document connector declares collection-specific schemas: `transcripts` / `transcript_passages`, `regulations` / `regulation_sections`, and `glossary` / `glossary_sections`. Parent rows contain metadata and citation URLs; children contain complete ordered text. Transcript children have speaker/question context; regulation children have section/page; glossary children group prose under HTML headings. There are no exported hashes, parser versions, full-text duplicates or section counts. Internal SDK checkpoints still track processing revisions and previous passage counts for incremental updates and obsolete-row deletion.
 
-[Search hooks](dbt/macros/document_search.sql) create an asynchronous AI.EMBED column using `gemini-embedding-2` (3072 dimensions), plus, for sources with at least 5,000 passages, a source-specific `transcript_passages_hybrid`, `regulation_passages_hybrid`, or `glossary_passages_hybrid` index (IVF/COSINE, lexical_search_columns=['embedding_text']). Smaller sources use hybrid search without an index. Hybrid search is Preview. No standalone search index is used.
+Regulations group PDF text at numbered headings through level three (1.1.1), retaining deeper clauses and page continuations. No word splitting or text truncation is performed. Gemini Embedding 2 truncates embedding inputs at 8,192 tokens while the entire passage remains available for RAG.
 
-One-time setup:
-
-```sh
-(cd dbt && python3 ../scripts/with_config.py dbt run-operation create_document_embedding_connection --profiles-dir .)
-.venv/bin/python scripts/configure_embedding_access.py
-```
-
-The US `f1_document_embeddings` connection's service account needs `roles/aiplatform.user`; dbt needs connection-scoped `roles/bigquery.connectionUser`. Vertex AI and BigQuery Connection APIs must be enabled. A fresh IAM grant can lag; the creation hook probes the connection before adding the generated column. Background failures also appear in `INFORMATION_SCHEMA.COLUMNS.async_generation_status`.
-
-Routine refresh/status:
+[The idempotent hook](dbt/macros/document_search.sql) runs at dbt run-end, or independently:
 
 ```sh
-(cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:document_search --threads 4 --no-manage-state)
+(cd dbt && python3 ../scripts/with_config.py dbt run-operation ensure_document_indexes --profiles-dir .)
 .venv/bin/python scripts/inspect_document_search.py --query
 ```
 
-Build completion does not mean embedding/index maintenance is complete. The status script reports pending/errors, index coverage and optional uncached hybrid query index usage for each of the three sources. Missing embeddings are omitted from AI.SEARCH. Use explicit `mode => 'HYBRID'`; results are relevant evidence, not exhaustive counts. ACTIVE alone does not prove acceleration; check coverage and query statistics.
+It adds an asynchronous generated `embedding` column using `AI.EMBED(text)` with `gemini-embedding-2` (3072 dimensions) directly to each source passage table. At 5,000 rows it creates an IVF/COSINE hybrid index with `lexical_search_columns=['text']`. Smaller tables support hybrid search without an index. It does not copy, merge, split, truncate or delete source data. Fivetran owns row updates/deletes. Never include the generated column in connector schemas/upserts. Explicit model changes require a deliberate embedding/index migration; IF NOT EXISTS does not replace an existing model.
 
-The live Gemini Embedding 2 migration completed on 2026-10-19. For any remaining old deployment, first deploy/sync the regulation parser, then run the following once. The reset drops only generated embeddings and their vector indexes; passage rows remain. Search is unavailable until the build recreates embeddings and background generation progresses. Do not use this reset for routine refreshes.
+The US `f1_document_embeddings` connection service account needs `roles/aiplatform.user`; the hook's identity needs connection-scoped `roles/bigquery.connectionUser` and permission to alter/index document source tables. Use `create_document_embedding_connection` and [configure_embedding_access.py](scripts/configure_embedding_access.py) for initial connection setup. Credentials remain outside the repository.
 
-```sh
-(cd dbt && python3 ../scripts/with_config.py dbt run-operation reset_document_embeddings --profiles-dir .)
-(cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:document_search tag:agents_schema --threads 4 --no-manage-state)
-.venv/bin/python scripts/inspect_document_search.py --query
-.venv/bin/python scripts/configure_data_agent.py
-```
+Build completion is not embedding/index readiness. The inspector reports pending/errors and coverage. Missing embeddings are omitted from AI.SEARCH; use explicit `mode => 'HYBRID'`. Search `text`, join parent metadata by document_id, filter `_fivetran_deleted` on both sides, and cite the parent's source_url. Matches are evidence, not exhaustive counts. ACTIVE does not establish acceleration; check query statistics.
 
-Refresh the agent only after the entire catalog build succeeds. The migration is explicit because changing the creation hook does not replace an existing generated column's model. Existing 768-dimensional vectors cannot be used with the new model.
-
-Keep `on_schema_change='append_new_columns'` so merge leaves the generated embedding intact. `ignore` tries to write it and `sync_all_columns` drops it. Full refresh is disabled to avoid unnecessary regeneration. `content_hash` excludes embeddings and prevents updates to unchanged rows. Model/index migrations must be deliberate. Do not split or truncate passages in dbt; rely on the embedding API for input truncation. Regulation boundaries belong in the connector, not in dbt. A regulation parser-version change invalidates only regulation checkpoints; sync the connector before rebuilding regulation search and refreshing the catalog/agent.
+Refresh the data agent only after all five catalog models succeed. No document search input views or flattened search tables are maintained.

@@ -531,93 +531,57 @@ from unnest(array<struct<table_name string, measure_name string, sql_expression 
         r"""Maximum recorded track temperature in degrees Celsius."""
     ),
     (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
+        r"""{{ target.database }}.f1_documents.transcripts""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Number of passages, not documents, rules, utterances or incidents."""
+        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""{{ target.database }}.f1_documents.transcript_passages""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Number of passages, not documents, rules, utterances or incidents."""
+        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
+        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""embedding_ready_count""",
+        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
+        r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
+    ),
+    (
+        r"""{{ target.database }}.f1_documents.regulations""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Number of passages, not documents, rules, utterances or incidents."""
+        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""document_count""",
-        r"""COUNT(DISTINCT t.document_id)""",
-        r"""Distinct source documents represented by these passages."""
+        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""row_count""",
+        r"""COUNT(*)""",
+        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""document_count""",
-        r"""COUNT(DISTINCT t.document_id)""",
-        r"""Distinct source documents represented by these passages."""
-    ),
-    (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""document_count""",
-        r"""COUNT(DISTINCT t.document_id)""",
-        r"""Distinct source documents represented by these passages."""
-    ),
-    (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""source_block_count""",
-        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_id, t.source_position)))""",
-        r"""Distinct source passages; equals row_count for unjoined search rows."""
-    ),
-    (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""source_block_count""",
-        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_id, t.source_position)))""",
-        r"""Distinct source passages; equals row_count for unjoined search rows."""
-    ),
-    (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""source_block_count""",
-        r"""COUNT(DISTINCT TO_JSON_STRING(STRUCT(t.document_id, t.source_position)))""",
-        r"""Distinct source passages; equals row_count for unjoined search rows."""
-    ),
-    (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
+        r"""{{ target.database }}.f1_documents.regulation_sections""",
         r"""embedding_ready_count""",
         r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
-        r"""Passages with a usable 3072-dimensional embedding; compare with row_count to assess search coverage."""
+        r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
     ),
     (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
+        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""row_count""",
+        r"""COUNT(*)""",
+        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+    ),
+    (
+        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""row_count""",
+        r"""COUNT(*)""",
+        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+    ),
+    (
+        r"""{{ target.database }}.f1_documents.glossary_sections""",
         r"""embedding_ready_count""",
         r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
-        r"""Passages with a usable 3072-dimensional embedding; compare with row_count to assess search coverage."""
-    ),
-    (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
-        r"""Passages with a usable 3072-dimensional embedding; compare with row_count to assess search coverage."""
-    ),
-    (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""embedding_error_count""",
-        r"""COUNTIF(t.embedding.status != '')""",
-        r"""Passages whose embedding status reports an error; these lack a successful semantic representation."""
-    ),
-    (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""embedding_error_count""",
-        r"""COUNTIF(t.embedding.status != '')""",
-        r"""Passages whose embedding status reports an error; these lack a successful semantic representation."""
-    ),
-    (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""embedding_error_count""",
-        r"""COUNTIF(t.embedding.status != '')""",
-        r"""Passages whose embedding status reports an error; these lack a successful semantic representation."""
+        r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
     )
 ])

@@ -147,21 +147,39 @@ from unnest(array<struct<table_name string, description string, primary_key arra
         r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""One complete transcript passage with its citation URL; no fixed word limit. Choose for press-conference quotes and race context; speaker labels are not resolved driver identities. Hybrid matches are relevant evidence, not exhaustive counts. Each row contains one full passage.""",
-        [r"""passage_id"""],
-        r"""TRUE"""
+        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""One press-conference transcript. Join passages by document_id for quotes and meetings by meeting_key for race context. Speaker labels do not identify drivers.""",
+        [r"""document_id"""],
+        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
     ),
     (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""One complete regulation section and citation URL, bounded by numbered headings through level three and retaining page continuations. No fixed word limit. Choose for sporting/technical rules; check edition and effective dates before applying a rule. Hybrid matches are relevant evidence, not exhaustive counts. Each row contains one full passage.""",
-        [r"""passage_id"""],
-        r"""TRUE"""
+        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""One ordered transcript passage, preserving its complete text and speaker/question context. Search text and join transcripts for citations.""",
+        [r"""document_id""", r"""position"""],
+        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
     ),
     (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""One complete glossary passage with its citation URL; no fixed word limit. Choose for definitions and terminology; current glossary pages are not historical law. Hybrid matches are relevant evidence, not exhaustive counts. Each row contains one full passage.""",
-        [r"""passage_id"""],
-        r"""TRUE"""
+        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""One regulation edition. Publication date is not its effective date; unknown effective dates remain null.""",
+        [r"""document_id"""],
+        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+    ),
+    (
+        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""One complete regulation section bounded by numbered headings through level three, retaining deeper clauses and page continuations. Section numbers can repeat in contents and appendices. Join regulations for edition and citations.""",
+        [r"""document_id""", r"""position"""],
+        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+    ),
+    (
+        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""One glossary page. Current definitions are not historical 2025 law.""",
+        [r"""document_id"""],
+        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+    ),
+    (
+        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""One complete glossary section grouped under its HTML heading. Search text and join glossary for citations.""",
+        [r"""document_id""", r"""position"""],
+        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
     )
 ])

@@ -11,7 +11,7 @@ from local_config import load_config
 load_config()
 
 PROJECT = os.environ["F1_GCP_PROJECT"]
-KINDS = ("transcript", "regulation", "glossary")
+COLLECTIONS = {"transcript": "transcript_passages", "regulation": "regulation_sections", "glossary": "glossary_sections"}
 
 
 def main():
@@ -19,23 +19,24 @@ def main():
     parser.add_argument("--query", action="store_true", help="Run each source hybrid example and show index usage")
     args = parser.parse_args()
     client = bigquery.Client(project=PROJECT, location="US")
-    tables = ", ".join(f"'{kind}_passages_search'" for kind in KINDS)
+    tables = ", ".join(f"'{table}'" for table in COLLECTIONS.values())
     queries = {
         "embeddings": " UNION ALL ".join(f"""
             SELECT '{kind}' AS source, COUNT(*) AS passages,
               COUNTIF(embedding.status = '' AND ARRAY_LENGTH(embedding.result) = 3072) AS ready,
               COUNTIF(embedding IS NULL OR embedding.status IS NULL) AS pending,
               COUNTIF(embedding.status != '') AS errors
-            FROM `{PROJECT}.f1.{kind}_passages_search`
-        """ for kind in KINDS),
+            FROM `{PROJECT}.f1_documents.{table}`
+            WHERE NOT COALESCE(_fivetran_deleted, FALSE)
+        """ for kind, table in COLLECTIONS.items()),
         "generation": f"""
             SELECT table_name, async_generation_status
-            FROM `{PROJECT}.f1.INFORMATION_SCHEMA.COLUMNS`
+            FROM `{PROJECT}.f1_documents.INFORMATION_SCHEMA.COLUMNS`
             WHERE table_name IN ({tables}) AND column_name = 'embedding'
         """,
         "index": f"""
             SELECT table_name, index_name, index_status, coverage_percentage, last_refresh_time
-            FROM `{PROJECT}.f1.INFORMATION_SCHEMA.VECTOR_INDEXES`
+            FROM `{PROJECT}.f1_documents.INFORMATION_SCHEMA.VECTOR_INDEXES`
             WHERE table_name IN ({tables})
         """,
     }

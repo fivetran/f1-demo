@@ -258,6 +258,24 @@ def extract(raw, item):
         el.decompose()
     for br in body.select("br"):
         br.replace_with("\n")
+    if item.get("document_type") == "glossary":
+        blocks = []
+        section = None
+        lines = []
+        for el in body.select("p,h2,h3,h4,li"):
+            text = normalized(el.get_text(" ", strip=True))
+            if not text:
+                continue
+            if el.name in ("h2", "h3", "h4"):
+                if lines:
+                    blocks.append(dict(text="\n\n".join(lines), section=section))
+                section, lines = text, []
+            lines.append(text)
+        if lines:
+            blocks.append(dict(text="\n\n".join(lines), section=section))
+        if sum(len(block["text"]) for block in blocks) < 200:
+            raise ValueError("Insufficient extracted glossary text")
+        return title, published, blocks
     paragraphs = [
         normalized(line)
         for el in body.select("p,h2,h3,h4,li")
@@ -335,41 +353,35 @@ KINDS = {
     "regulation": ("regulations", "regulation_sections"),
     "glossary": ("glossary", "glossary_sections"),
 }
-COMMON_COLUMNS = {
-    "document_id": "STRING",
-    "source_url": "STRING",
-    "title": "STRING",
-    "published_at": "STRING",
-    "content_hash": "STRING",
-    "source_hash": "STRING",
-    "parser_version": "STRING",
-    "full_text": "STRING",
-    "section_count": "LONG",
-}
-KIND_COLUMNS = {
+# Destination fields describe each collection; processing checkpoints stay in SDK state.
+PARENT_COLUMNS = {
     "transcript": {
-        "meeting_key": "LONG",
-        "race_name": "STRING",
-        "conference_type": "STRING",
+        "document_id": "STRING", "source_url": "STRING", "title": "STRING",
+        "published_at": "STRING", "meeting_key": "LONG", "conference_type": "STRING",
         "association_method": "STRING",
     },
     "regulation": {
-        "applicable_season": "LONG",
-        "rule_family": "STRING",
-        "applicability_status": "STRING",
-        "effective_from": "STRING",
-        "effective_to": "STRING",
+        "document_id": "STRING", "source_url": "STRING", "title": "STRING",
+        "published_at": "STRING", "applicable_season": "LONG", "rule_family": "STRING",
+        "applicability_status": "STRING", "effective_from": "STRING", "effective_to": "STRING",
     },
-    "glossary": {"applicability_status": "STRING"},
+    "glossary": {
+        "document_id": "STRING", "source_url": "STRING", "title": "STRING",
+        "applicability_status": "STRING",
+    },
 }
-SECTION_COLUMNS = {
-    "document_id": "STRING",
-    "position": "LONG",
-    "text": "STRING",
-    "question": "STRING",
-    "speaker": "STRING",
-    "section": "STRING",
-    "page_number": "LONG",
+PASSAGE_COLUMNS = {
+    "transcript": {
+        "document_id": "STRING", "position": "LONG", "text": "STRING",
+        "question": "STRING", "speaker": "STRING", "section": "STRING",
+    },
+    "regulation": {
+        "document_id": "STRING", "position": "LONG", "text": "STRING",
+        "section": "STRING", "page_number": "LONG",
+    },
+    "glossary": {
+        "document_id": "STRING", "position": "LONG", "text": "STRING", "section": "STRING",
+    },
 }
 
 
@@ -380,11 +392,11 @@ def schema(configuration):
             dict(
                 table=parent,
                 primary_key=["document_id"],
-                columns=dict(COMMON_COLUMNS, **KIND_COLUMNS[kind]),
+                columns=PARENT_COLUMNS[kind],
             )
         )
         tables.append(
-            dict(table=child, primary_key=["document_id", "position"], columns=SECTION_COLUMNS)
+            dict(table=child, primary_key=["document_id", "position"], columns=PASSAGE_COLUMNS[kind])
         )
     tables.append(
         dict(
@@ -444,7 +456,7 @@ def update(configuration, state):
         docid = sha(url)
         signature = sha(
             json.dumps(item, sort_keys=True)
-            + parser_version
+            + parser_version + "native-collections-1"
             + configuration.get("refresh_generation", "initial")
         )
         previous = completed.get(docid)
@@ -473,22 +485,12 @@ def update(configuration, state):
             if previous and previous["kind"] != kind:
                 delete_document(docid, previous)
                 previous = None
-            text = "\n\n".join(b["text"] for b in blocks)
-            row = dict(
-                document_id=docid,
-                source_url=url,
-                title=title,
-                published_at=published,
-                source_hash=sha(raw),
-                content_hash=sha(normalized(text)),
-                parser_version=parser_version,
-                full_text=text,
-                section_count=len(blocks),
-            )
-            row.update({key: item.get(key) for key in KIND_COLUMNS[kind]})
-            op.upsert(table=parent, data=row)
+            metadata = dict(item, document_id=docid, source_url=url, title=title,
+                            published_at=published)
+            op.upsert(table=parent, data={key: metadata.get(key) for key in PARENT_COLUMNS[kind]})
             for n, block in enumerate(blocks):
-                op.upsert(table=child, data=dict(document_id=docid, position=n, **block))
+                passage = dict(block, document_id=docid, position=n)
+                op.upsert(table=child, data={key: passage.get(key) for key in PASSAGE_COLUMNS[kind]})
             for n in range(len(blocks), (previous or {}).get("section_count", 0)):
                 op.delete(table=child, keys={"document_id": docid, "position": n})
             completed[docid] = dict(

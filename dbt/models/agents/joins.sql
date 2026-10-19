@@ -299,11 +299,35 @@ from unnest(array<struct<join_name string, from_table string, to_table string, j
         r"""Optional exact driver/lap reference only. LEFT JOIN retains global or unmatched messages. Does not label every lap affected by the message."""
     ),
     (
-        r"""transcript_passages_to_meeting""",
-        r"""{{ target.database }}.f1.transcript_passages_search""",
+        r"""transcript_passages_to_transcripts""",
+        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""many-one""",
+        r"""l.document_id = r.document_id""",
+        r"""Join active passages to active parents for metadata and citation URL. Filter _fivetran_deleted on both sides."""
+    ),
+    (
+        r"""regulation_sections_to_regulations""",
+        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""many-one""",
+        r"""l.document_id = r.document_id""",
+        r"""Join active passages to active parents for metadata and citation URL. Filter _fivetran_deleted on both sides."""
+    ),
+    (
+        r"""glossary_sections_to_glossary""",
+        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""many-one""",
+        r"""l.document_id = r.document_id""",
+        r"""Join active passages to active parents for metadata and citation URL. Filter _fivetran_deleted on both sides."""
+    ),
+    (
+        r"""transcripts_to_meeting""",
+        r"""{{ target.database }}.f1_documents.transcripts""",
         r"""{{ target.database }}.f1.meetings""",
         r"""many-one""",
         r"""l.meeting_key = r.meeting_key""",
-        r"""Transcript passages retain the parent meeting association. Use LEFT JOIN to preserve unmatched documents; this is not speaker-to-driver resolution."""
+        r"""LEFT JOIN preserves unmatched transcripts. This association does not resolve speakers to drivers."""
     )
 ])

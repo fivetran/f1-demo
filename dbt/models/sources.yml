@@ -29,9 +29,15 @@ sources:
   schema: '{{ env_var(''F1_DOCUMENTS_DATASET'', ''f1_documents'') }}'
   tables:
   - name: transcripts
+    description: Press-conference metadata; join transcript_passages by document_id.
   - name: transcript_passages
+    description: Complete ordered interview text with speaker and question context; indexed directly.
   - name: regulations
+    description: Regulation edition and applicability metadata; join regulation_sections by document_id.
   - name: regulation_sections
+    description: Complete numbered sections with starting PDF page; indexed directly.
   - name: glossary
+    description: Glossary page metadata and citation URL; join glossary_sections by document_id.
   - name: glossary_sections
+    description: Complete prose grouped under HTML headings; indexed directly.
   - name: fetch_status
