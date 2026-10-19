@@ -20,14 +20,10 @@ with passages as (
     join {{ source('documents', 'transcripts') }} as p on s.document_id = p.document_id
     where not coalesce(s._fivetran_deleted, false)
       and not coalesce(p._fivetran_deleted, false)
-), chunks as (
-    -- Keep the connector's full passage. The embedding API handles overflow.
-    select p.*, p.text as chunk_text, 0 as chunk_index
-    from passages as p
 ), contextualized as (
     select c.* except(previous_text, next_text),
         to_hex(sha256(to_json_string(struct(
-            c.document_type, c.document_id, c.source_position, c.chunk_index
+            c.document_type, c.document_id, c.source_position
         )))) as passage_id,
         array_to_string([
             concat('Title: ', left(c.title, 240)),
@@ -35,10 +31,10 @@ with passages as (
             concat('Speaker label: ', left(c.speaker_label, 80)),
             concat('Question: ', left(c.question, 600)),
             concat('Previous glossary block: ', left(c.previous_text, 600)),
-            concat('Passage: ', c.chunk_text),
+            concat('Passage: ', c.text),
             concat('Next glossary block: ', left(c.next_text, 600))
         ], '\n') as embedding_text
-    from chunks as c
+    from passages as c
 )
 select c.*, to_hex(sha256(to_json_string(c))) as content_hash
 from contextualized as c

@@ -31,17 +31,17 @@ Drivers are people, teams are named team identities, and session_entries assigns
 
 ## Documents
 
-Transcript coverage remains 2025; do not infer 2026 document coverage from racing tables. Choose `transcript_passages_search` for press-conference quotes, `regulation_passages_search` for rules, and `glossary_passages_search` for definitions. Query the relevant table directly; for questions spanning sources, search each relevant table separately and synthesize the cited evidence. Each row carries document metadata and citation URL alongside the complete passage in both `chunk_text` and `text`. To read each block once, select `chunk_index = 0` and order by `source_position` within `(document_type, document_id)`. To retrieve adjacent context, query the same table for the neighboring source positions. A block is not necessarily one article, glossary term or utterance. Use distinct document keys for document counts. Transcript meeting associations retain `association_method` provenance. Explicit speaker labels are text, not verified driver identities; do not join on a mentioned name.
+Transcript coverage remains 2025; do not infer 2026 document coverage from racing tables. Choose `transcript_passages_search` for press-conference quotes, `regulation_passages_search` for rules, and `glossary_passages_search` for definitions. Query the relevant table directly; for questions spanning sources, search each relevant table separately and synthesize the cited evidence. Each row carries document metadata and citation URL alongside the complete passage in `text`. Read passages in order by `source_position` within `(document_type, document_id)`. To retrieve adjacent context, query the same table for the neighboring source positions. A block is not necessarily one article, glossary term or utterance. Use distinct document keys for document counts. Transcript meeting associations retain `association_method` provenance. Explicit speaker labels are text, not verified driver identities; do not join on a mentioned name.
 
 Regulation editions require applicability assessment; published_at does not prove an article's effective date, and unknown effective dates stay unknown. Current glossary pages explain terminology but are not historical 2025 law. No season-only regulation-to-race join or inferred speaker-to-driver join is declared.
 
 ## Hybrid document retrieval
 
-Use `f1.transcript_passages_search`, `f1.regulation_passages_search`, or `f1.glossary_passages_search` according to the question. Each has its own embeddings and supports hybrid search. Small sources can be searched without an index. Search `embedding_text`; return `chunk_text` with document metadata for context and citation. A usable embedding has empty status and a 3072-element result. NULL embeddings are unavailable for search, and nonempty status indicates an error. Compare embedding_ready_count with row_count to assess how much of the selected corpus is searchable.
+Use `f1.transcript_passages_search`, `f1.regulation_passages_search`, or `f1.glossary_passages_search` according to the question. Each has its own embeddings and supports hybrid search. Small sources can be searched without an index. Search `embedding_text`; return `text` with document metadata for context and citation. A usable embedding has empty status and a 3072-element result. NULL embeddings are unavailable for search, and nonempty status indicates an error. Compare embedding_ready_count with row_count to assess how much of the selected corpus is searchable.
 
 Use ``AI.SEARCH(TABLE `{{ target.database }}.f1.transcript_passages_search`, 'embedding_text', 'your question', mode => 'HYBRID', top_k => 5)`` for transcript evidence; substitute the regulation or glossary table when appropriate. Explicit HYBRID avoids AUTO silently selecting semantic-only search. All three tables store document_id, source_position and speaker_label for prefiltering; transcripts additionally store meeting_key and conference_type, and regulations store rule_family and applicable_season. Do not refer to transcript columns in the regulation/glossary tables or regulation columns in the other tables. A speaker label is not a verified identity; a regulation season is not proof of applicability.
 
-Regulation search uses complete numbered sections through level three (such as 1.1.1), retaining deeper clauses and continuations across PDF pages. Each regulation section has chunk_index = 0, with no fixed word limit; page_number is its starting page. Article/appendix headings and unheaded front matter are also retained. Contents can repeat section numbers. Transcript and glossary search also keep each complete source passage in one row, with chunk_index = 0. Deduplicate `(document_type, document_id, source_position)` when counting blocks, or `(document_type, document_id)` when counting documents. Gemini Embedding 2 embeds up to 8,192 input tokens; the API truncates oversized embedding inputs, while the complete passage remains stored and should be read for answer context. Successful embedding status does not prove full-text semantic coverage. `embedding_text` includes bounded contextual material; glossary context can mention neighboring definitions. Inspect `chunk_text` and the full `text` block, read adjacent positions in this table when needed, and cite `source_url`. Hybrid matches and their semantic distances are not exhaustive fact counts or calibrated confidence scores. The output order is not guaranteed. AI.SEARCH omits rows without embeddings; check readiness when freshness matters. The query examples below illustrate all three topics.
+Regulation search uses complete numbered sections through level three (such as 1.1.1), retaining deeper clauses and continuations across PDF pages. Each regulation section has no fixed word limit; page_number is its starting page. Article/appendix headings and unheaded front matter are also retained. Contents can repeat section numbers. Transcript and glossary search also keep each complete source passage in one row. Deduplicate `(document_type, document_id, source_position)` when counting blocks, or `(document_type, document_id)` when counting documents. Gemini Embedding 2 embeds up to 8,192 input tokens; the API truncates oversized embedding inputs, while the complete passage remains stored and should be read for answer context. Successful embedding status does not prove full-text semantic coverage. `embedding_text` includes bounded contextual material; glossary context can mention neighboring definitions. Inspect the full `text` passage, read adjacent positions in this table when needed, and cite `source_url`. Hybrid matches and their semantic distances are not exhaustive fact counts or calibrated confidence scores. The output order is not guaranteed. AI.SEARCH omits rows without embeddings; check readiness when freshness matters. The query examples below illustrate all three topics.
 
 ## Findings from warehouse profiling
 
@@ -84,7 +84,7 @@ This coverage checklist restates the exploratory topics for the new catalog; it 
 | 15 | How did the gaps to the leader evolve? | intervals numeric gap averages plus numeric coverage; preserve +1 LAP labels; explicit time windows. |
 | 16 | What were race weather conditions, and did it rain? | weather average temperatures and rainy_sample_fraction -> sessions; sample statistics, not duration/depth. |
 | 17 | Which flags and race-control messages occurred around an incident? | race_control messages with optional entry/lap joins; explicit time window for other feeds; message count is not incident duration. |
-| 18 | What did drivers say after a difficult race, and what radio clips are available? | transcript_passages_search -> meetings; read text once per source_position using chunk_index = 0, with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
+| 18 | What did drivers say after a difficult race, and what radio clips are available? | transcript_passages_search -> meetings; read text once per source_position with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
 | 19 | What do racing terms mean, and what did the relevant regulation edition say? | glossary_passages_search or regulation_passages_search; inspect full text blocks and edition/applicability, cite sources, no season-only legal join. |
 | 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status unavailable_scope_count / reported_source_rows for racing coverage; each chosen search table's document_count / source_block_count and embedding_ready_count for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
 
@@ -185,8 +185,8 @@ JOIN `{{ target.database }}.f1.sync_status` AS coverage
 Question: Explain dirty air and loss of downforce when following another car, using glossary sources.
 
 ```sql
-select base.document_id, base.source_position, base.chunk_index,
-       base.title, base.chunk_text, base.embedding_text, base.source_url, distance
+select base.document_id, base.source_position,
+       base.title, base.text, base.embedding_text, base.source_url, distance
 from ai.search(
     (select * from `{{ target.database }}.f1.glossary_passages_search`),
     'embedding_text', 'dirty air and loss of downforce when following another car',
@@ -200,9 +200,9 @@ Question: Find regulations about leaving the track and gaining a lasting advanta
 
 ```sql
 -- Retrieve evidence across editions; assess applicability before applying a rule.
-select base.document_id, base.source_position, base.chunk_index,
+select base.document_id, base.source_position,
        base.title, base.rule_family, base.effective_from, base.effective_to,
-       base.chunk_text, base.source_url, distance
+       base.text, base.source_url, distance
 from ai.search(
     (select * from `{{ target.database }}.f1.regulation_passages_search`),
     'embedding_text', 'leaving the track and gaining a lasting advantage',
@@ -217,8 +217,8 @@ Question: Find post-race comments about tyre degradation and managing tyres, wit
 ```sql
 -- Hybrid retrieval selects relevant evidence; distance is semantic distance,
 -- not a calibrated confidence or a documented combined ranking score.
-select base.document_id, base.source_position, base.chunk_index,
-       base.title, base.speaker_label, base.question, base.chunk_text,
+select base.document_id, base.source_position,
+       base.title, base.speaker_label, base.question, base.text,
        base.source_url, distance
 from ai.search(
     (select * from `{{ target.database }}.f1.transcript_passages_search`
@@ -233,13 +233,12 @@ from ai.search(
 Question: Show original transcript blocks mentioning tyres, with their race context.
 
 ```sql
--- Each row holds one full passage; chunk_index is always zero.
+-- Each row holds one full passage.
 SELECT p.document_id, p.source_url, p.title, p.conference_type, p.association_method,
   m.meeting_name, p.source_position, p.speaker_label, p.question, p.text
 FROM `{{ target.database }}.f1.transcript_passages_search` AS p
 LEFT JOIN `{{ target.database }}.f1.meetings` AS m USING (meeting_key)
-WHERE p.chunk_index = 0
-  AND LOWER(COALESCE(p.text, '')) LIKE '%tyre%'
+WHERE LOWER(COALESCE(p.text, '')) LIKE '%tyre%'
 ORDER BY p.document_id, p.source_position
 LIMIT 100
 ```

@@ -299,11 +299,11 @@ from unnest(array<struct<join_name string, from_table string, to_table string, j
         r"""Optional exact driver/lap reference only. LEFT JOIN retains global or unmatched messages. Does not label every lap affected by the message."""
     ),
     (
-        r"""transcript_chunks_to_meeting""",
+        r"""transcript_passages_to_meeting""",
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""{{ target.database }}.f1.meetings""",
         r"""many-one""",
         r"""l.meeting_key = r.meeting_key""",
-        r"""Transcript chunks retain the parent meeting association. Use LEFT JOIN to preserve unmatched documents; this is not speaker-to-driver resolution."""
+        r"""Transcript passages retain the parent meeting association. Use LEFT JOIN to preserve unmatched documents; this is not speaker-to-driver resolution."""
     )
 ])

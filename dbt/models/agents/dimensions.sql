@@ -1020,19 +1020,19 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""text""",
         r"""STRING""",
-        r"""Complete source passage, identical to chunk_text. Read this full text for answer context, including any tail omitted from its embedding."""
+        r"""Complete source passage. Read this full text for answer context, including any tail omitted from its embedding."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""text""",
         r"""STRING""",
-        r"""Complete source passage, identical to chunk_text. Read this full text for answer context, including any tail omitted from its embedding."""
+        r"""Complete source passage. Read this full text for answer context, including any tail omitted from its embedding."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""text""",
         r"""STRING""",
-        r"""Complete source passage, identical to chunk_text. Read this full text for answer context, including any tail omitted from its embedding."""
+        r"""Complete source passage. Read this full text for answer context, including any tail omitted from its embedding."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
@@ -1092,7 +1092,7 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""page_number""",
         r"""INTEGER""",
-        r"""Source PDF page number, when available; not the block ordinal or chunk index."""
+        r"""Source PDF page number, when available; not the block ordinal."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
@@ -1104,7 +1104,7 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""page_number""",
         r"""INTEGER""",
-        r"""Source PDF page number, when available; not the block ordinal or chunk index."""
+        r"""Source PDF page number, when available; not the block ordinal."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
@@ -1222,93 +1222,57 @@ from unnest(array<struct<table_name string, column_name string, data_type string
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""chunk_text""",
-        r"""STRING""",
-        r"""Complete source passage, identical to text; no fixed word limit."""
-    ),
-    (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""chunk_text""",
-        r"""STRING""",
-        r"""Complete semantic regulation section, split at numbered headings through level three (for example 1.1.1), with deeper clauses and page continuations retained. No fixed word limit."""
-    ),
-    (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""chunk_text""",
-        r"""STRING""",
-        r"""Complete source passage, identical to text; no fixed word limit."""
-    ),
-    (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
-        r"""chunk_index""",
-        r"""INTEGER""",
-        r"""Always zero: each source passage is one complete search row."""
-    ),
-    (
-        r"""{{ target.database }}.f1.regulation_passages_search""",
-        r"""chunk_index""",
-        r"""INTEGER""",
-        r"""Always zero: each source passage is one complete search row."""
-    ),
-    (
-        r"""{{ target.database }}.f1.glossary_passages_search""",
-        r"""chunk_index""",
-        r"""INTEGER""",
-        r"""Always zero: each source passage is one complete search row."""
-    ),
-    (
-        r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""passage_id""",
         r"""STRING""",
-        r"""Opaque search chunk identifier. The equivalent natural key is document_type, document_id, source_position and chunk_index; use these fields to locate the original text."""
+        r"""Opaque search passage identifier. The equivalent natural key is document_type, document_id, and source_position; use these fields to locate the original text."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""passage_id""",
         r"""STRING""",
-        r"""Opaque search chunk identifier. The equivalent natural key is document_type, document_id, source_position and chunk_index; use these fields to locate the original text."""
+        r"""Opaque search passage identifier. The equivalent natural key is document_type, document_id, and source_position; use these fields to locate the original text."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""passage_id""",
         r"""STRING""",
-        r"""Opaque search chunk identifier. The equivalent natural key is document_type, document_id, source_position and chunk_index; use these fields to locate the original text."""
+        r"""Opaque search passage identifier. The equivalent natural key is document_type, document_id, and source_position; use these fields to locate the original text."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""embedding_text""",
         r"""STRING""",
-        r"""Text searched by semantic and keyword retrieval: full chunk plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify chunk_text and original source."""
+        r"""Text searched by semantic and keyword retrieval: full passage plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify text and original source."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""embedding_text""",
         r"""STRING""",
-        r"""Text searched by semantic and keyword retrieval: full chunk plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify chunk_text and original source."""
+        r"""Text searched by semantic and keyword retrieval: full passage plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify text and original source."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""embedding_text""",
         r"""STRING""",
-        r"""Text searched by semantic and keyword retrieval: full chunk plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify chunk_text and original source."""
+        r"""Text searched by semantic and keyword retrieval: full passage plus bounded title/heading/question/label and neighboring glossary blocks. Context may mention another concept or person; verify text and original source."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",
         r"""content_hash""",
         r"""STRING""",
-        r"""Fingerprint of the chunk text, context and metadata. It is not a document or passage identifier; use passage_id for chunk identity."""
+        r"""Fingerprint of the passage text, context and metadata. It is not a document or passage identifier; use passage_id for passage identity."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_passages_search""",
         r"""content_hash""",
         r"""STRING""",
-        r"""Fingerprint of the chunk text, context and metadata. It is not a document or passage identifier; use passage_id for chunk identity."""
+        r"""Fingerprint of the passage text, context and metadata. It is not a document or passage identifier; use passage_id for passage identity."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_passages_search""",
         r"""content_hash""",
         r"""STRING""",
-        r"""Fingerprint of the chunk text, context and metadata. It is not a document or passage identifier; use passage_id for chunk identity."""
+        r"""Fingerprint of the passage text, context and metadata. It is not a document or passage identifier; use passage_id for passage identity."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages_search""",

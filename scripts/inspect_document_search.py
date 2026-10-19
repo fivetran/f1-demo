@@ -22,7 +22,7 @@ def main():
     tables = ", ".join(f"'{kind}_passages_search'" for kind in KINDS)
     queries = {
         "embeddings": " UNION ALL ".join(f"""
-            SELECT '{kind}' AS source, COUNT(*) AS chunks,
+            SELECT '{kind}' AS source, COUNT(*) AS passages,
               COUNTIF(embedding.status = '' AND ARRAY_LENGTH(embedding.result) = 3072) AS ready,
               COUNTIF(embedding IS NULL OR embedding.status IS NULL) AS pending,
               COUNTIF(embedding.status != '') AS errors

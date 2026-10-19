@@ -3,15 +3,15 @@ models:
 - name: transcript_search_input
   description: Active complete transcript passages, with source-specific context.
 - name: transcript_passages_search
-  description: Incremental transcript search corpus with original blocks, citations, managed embeddings and hybrid search. Read complete blocks once with chunk_index = 0.
+  description: Incremental transcript search corpus with original blocks, citations, managed embeddings and hybrid search. Each row contains one complete passage.
   data_tests:
   - valid_key:
       arguments:
         columns: [passage_id]
 - name: regulation_search_input
-  description: Active semantic regulation sections, each used intact as one search chunk.
+  description: Active semantic regulation sections, each used intact as one search passage.
 - name: regulation_passages_search
-  description: Incremental regulation search corpus with original blocks, citations, managed embeddings and hybrid search. Read complete blocks once with chunk_index = 0.
+  description: Incremental regulation search corpus with original blocks, citations, managed embeddings and hybrid search. Each row contains one complete passage.
   data_tests:
   - valid_key:
       arguments:
@@ -19,7 +19,7 @@ models:
 - name: glossary_search_input
   description: Active complete glossary passages, with source-specific context.
 - name: glossary_passages_search
-  description: Incremental glossary search corpus with original blocks, citations, managed embeddings and hybrid search. Read complete blocks once with chunk_index = 0.
+  description: Incremental glossary search corpus with original blocks, citations, managed embeddings and hybrid search. Each row contains one complete passage.
   data_tests:
   - valid_key:
       arguments:

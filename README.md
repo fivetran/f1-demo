@@ -22,7 +22,7 @@ flowchart LR
 |---|---|
 | Ingestion | [OpenF1 connector](connectors/openf1/) and [documents connector](connectors/documents/); sources stay in `f1_openf1` and `f1_documents`. |
 | Normalization | [dbt models](dbt/models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
-| Document search | [Search models](dbt/models/search/) and [hooks](dbt/macros/document_search.sql): changed chunks merge; obsolete chunks are deleted; BigQuery maintains separate transcript, regulation, and glossary search tables, with indexes for sources of at least 5,000 chunks. The agent chooses which to search. |
+| Document search | [Search models](dbt/models/search/) and [hooks](dbt/macros/document_search.sql): changed passages merge; obsolete passages are deleted; BigQuery maintains separate transcript, regulation, and glossary search tables, with indexes for sources of at least 5,000 passages. The agent chooses which to search. |
 | Agent context | [Five inline SQL models](dbt/models/agents/) build `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`. |
 | Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
