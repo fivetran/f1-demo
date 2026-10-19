@@ -312,3 +312,89 @@ def test_manifest_removal_deletes_document_sections_and_status(monkeypatch, tmp_
         "fetch_status",
     ]
     assert events[-1]["keys"] == {"source_url": url}
+
+
+def test_transcript_discovery_dates_metadata_and_sitemap_refresh(monkeypatch):
+    from types import SimpleNamespace
+
+    m = load('documents')
+    root = 'https://www.fia.com/sitemap.xml'
+    child = root + '?page=1'
+    prefix = 'https://www.fia.com/news/'
+    italian = prefix + 'italian-grand-prix-post-race-press-conference-transcript'
+    old = prefix + 'f1-monaco-grand-prix-thursday-press-conference-transcript'
+    added = prefix + 'f1-2025-italian-grand-prix-friday-press-conference-transcript'
+    urls = [italian, old, prefix + 'f1-2024-monaco-grand-prix-post-race-press-conference-transcript']
+    calls = []
+    lastmod = '2025-09-08'
+
+    def fetch(url, revalidate=False):
+        calls.append((url, revalidate))
+        ns = 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+        if url == root:
+            return f'<sitemapindex {ns}><sitemap><loc>{child}</loc></sitemap></sitemapindex>'.encode(), {}
+        if url == child:
+            return (f'<urlset {ns}>' + ''.join(
+                f'<url><loc>{u}</loc><lastmod>{lastmod}</lastmod></url>' for u in urls
+            ) + '</urlset>').encode(), {}
+        date = '2024-05-23' if url == old else '2025-09-07'
+        return (f'<meta property="article:published_time" content="{date}T18:00:00+02:00">'
+                '<meta property="og:title" content="Conference">').encode(), {}
+
+    def request(url):
+        if '/meetings?' in url:
+            return SimpleNamespace(json=lambda: [dict(meeting_key=1272, meeting_name='Italian Grand Prix')])
+        return SimpleNamespace(json=lambda: [dict(meeting_key=1272,
+            date_start='2025-09-07T13:00:00+00:00', date_end='2025-09-07T15:00:00+00:00')])
+
+    fetcher = SimpleNamespace(fetch=fetch, request=request, refresh=False)
+    state = {}
+    items = m.discover_transcripts(fetcher, {2025}, state)
+    assert len(items) == 1 and items[0]['url'] == italian
+    assert items[0]['meeting_key'] == 1272 and items[0]['conference_type'] == 'post-race'
+    urls.append(added)
+    items = m.discover_transcripts(fetcher, {2025}, json.loads(json.dumps(state)))
+    assert {i['url'] for i in items} == {italian, added}
+    assert sum(u == italian for u, _ in calls) == 1
+    assert sum(u == old for u, _ in calls) == 1
+    assert sum(u == child and fresh for u, fresh in calls) == 2
+    lastmod = '2025-09-09'
+    refreshed = m.discover_transcripts(fetcher, {2025}, state)
+    assert all(i['sitemap_lastmod'] == lastmod for i in refreshed)
+    assert sum(u == italian and fresh for u, fresh in calls) == 2
+    fetcher.request = lambda url: SimpleNamespace(json=lambda: [])
+    with pytest.raises(ValueError, match='Expected one race weekend'):
+        m.discover_transcripts(fetcher, {2025}, state)
+
+
+def test_sitemap_absence_preserves_legacy_transcripts_but_static_removal_deletes(monkeypatch, tmp_path):
+    m = load('documents')
+    manifest = tmp_path / 'manifest.json'
+    manifest.write_text('[]')
+    state = {'documents': {
+        'transcript': dict(kind='transcript', source_url='https://example.org/transcript', section_count=2),
+        'regulation': dict(kind='regulation', source_url='https://example.org/regulation', section_count=1),
+    }}
+    monkeypatch.setattr(m, 'discover_transcripts', lambda *args: [])
+    deleted = []
+    monkeypatch.setattr(m.op, 'delete', lambda **kw: deleted.append(kw))
+    monkeypatch.setattr(m.op, 'checkpoint', lambda s: None)
+    m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_years='2025'), state)
+    assert set(state['documents']) == {'transcript'}
+    assert [d['table'] for d in deleted] == ['regulation_sections', 'regulations', 'fetch_status']
+
+
+def test_discovery_failure_does_not_delete_or_checkpoint(monkeypatch, tmp_path):
+    m = load('documents')
+    manifest = tmp_path / 'manifest.json'
+    manifest.write_text('[]')
+    state = {'documents': {'old': dict(kind='glossary', source_url='https://example.org/old', section_count=1)}}
+    def fail(*args):
+        raise RuntimeError('sitemap unavailable')
+    monkeypatch.setattr(m, 'discover_transcripts', fail)
+    events = []
+    monkeypatch.setattr(m.op, 'delete', lambda **kw: events.append(kw))
+    monkeypatch.setattr(m.op, 'checkpoint', lambda s: events.append(s))
+    with pytest.raises(RuntimeError, match='sitemap unavailable'):
+        m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_years='2025'), state)
+    assert not events and 'old' in state['documents']

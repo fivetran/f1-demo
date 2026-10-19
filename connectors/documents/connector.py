@@ -6,10 +6,11 @@ import json
 import re
 import time
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
+from xml.etree import ElementTree
 
 import requests
 from bs4 import BeautifulSoup
@@ -61,10 +62,11 @@ class Fetcher:
             return r
         raise RuntimeError("Retries exhausted: " + url)
 
-    def fetch(self, url):
+    def fetch(self, url, revalidate=False):
+        refresh = self.refresh or revalidate
         key = self.cache / sha(url)
         meta_path = key.with_suffix(".json")
-        if key.exists() and meta_path.exists() and not self.refresh:
+        if key.exists() and meta_path.exists() and not refresh:
             return key.read_bytes(), json.loads(meta_path.read_text())
         host = urlparse(url).netloc
         if host not in self.rules:
@@ -77,7 +79,7 @@ class Fetcher:
         key = self.cache / sha(url)
         meta_path = key.with_suffix(".json")
         meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-        if key.exists() and not self.refresh:
+        if key.exists() and not refresh:
             return key.read_bytes(), meta
         headers = {}
         if meta.get("etag"):
@@ -96,6 +98,83 @@ class Fetcher:
         key.write_bytes(r.content)
         meta_path.write_text(json.dumps(meta))
         return r.content, meta
+
+
+def sitemap_pages(fetcher, url="https://www.fia.com/sitemap.xml", seen=None):
+    """Read every sitemap page afresh (conditional HTTP requests reuse cached XML)."""
+    seen = set() if seen is None else seen
+    if url in seen:
+        return {}
+    seen.add(url)
+    raw, _ = fetcher.fetch(url, revalidate=True)
+    root = ElementTree.fromstring(raw)
+    ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+    pages = {}
+    if root.tag not in (ns + "sitemapindex", ns + "urlset"):
+        raise ValueError("Unrecognized sitemap: " + url)
+    for entry in root:
+        location = entry.findtext(ns + "loc")
+        if not location:
+            raise ValueError("Missing sitemap location: " + url)
+        if root.tag == ns + "sitemapindex":
+            pages.update(sitemap_pages(fetcher, location, seen))
+        else:
+            pages[location] = entry.findtext(ns + "lastmod")
+    return pages
+
+
+def discover_transcripts(fetcher, years, state):
+    pages = sitemap_pages(fetcher)
+    metadata = state.setdefault("transcript_pages", {})
+    meetings, races = {}, []
+    for year in sorted(years):
+        # OpenF1 is an API; use the same paced/retrying HTTP client as documents.
+        for meeting in fetcher.request(f"https://api.openf1.org/v1/meetings?year={year}").json():
+            meetings[meeting["meeting_key"]] = meeting
+        races.extend(fetcher.request(
+            f"https://api.openf1.org/v1/sessions?year={year}&session_name=Race"
+        ).json())
+    pattern = re.compile(
+        r"^https://www\.fia\.com/news/(?:f1-)?(?:(\d{4})-)?"
+        r".+-grand-prix-(.+)-press-conference-transcript$"
+    )
+    items = []
+    for url, lastmod in sorted(pages.items()):
+        match = pattern.match(url)
+        if not match or (match[1] and int(match[1]) not in years):
+            continue
+        previous = metadata.get(url)
+        if previous is None or previous["lastmod"] != lastmod or fetcher.refresh:
+            raw, _ = fetcher.fetch(url, revalidate=True)
+            soup = BeautifulSoup(raw, "html.parser")
+            date = soup.select_one('meta[property="article:published_time"]')
+            title = soup.select_one('meta[property="og:title"]')
+            if not date or not date.get("content"):
+                raise ValueError("Missing transcript publication date: " + url)
+            previous = dict(lastmod=lastmod, published_at=date["content"],
+                            title=title["content"] if title else soup.title.get_text())
+            metadata[url] = previous
+        published = datetime.fromisoformat(previous["published_at"].replace("Z", "+00:00"))
+        if published.year not in years:
+            continue
+        # Include media days before the race, with one day after for late publication.
+        matches = [race for race in races if race.get("date_end") and
+                   not race.get("is_cancelled") and
+                   datetime.fromisoformat(race["date_start"].replace("Z", "+00:00")).date()
+                   - timedelta(days=4) <= published.date() <=
+                   datetime.fromisoformat(race["date_end"].replace("Z", "+00:00")).date()
+                   + timedelta(days=1)]
+        if len(matches) != 1:
+            raise ValueError("Expected one race weekend for transcript: " + url)
+        meeting = meetings[matches[0]["meeting_key"]]
+        items.append(dict(
+            url=url, document_type="transcript", title=previous["title"],
+            published_at=previous["published_at"], conference_type=match[2],
+            meeting_key=meeting["meeting_key"], race_name=meeting["meeting_name"],
+            association_method="unique weekend publication window; content title retained for audit",
+            sitemap_lastmod=lastmod,
+        ))
+    return items
 
 
 def regulation_sections(reader):
@@ -342,13 +421,18 @@ def update(configuration, state):
         raise ValueError("New table layout requires a fresh connection/state")
     state["schema_version"] = 2
     completed = state.setdefault("documents", {})
+    discovery = bool(configuration.get("transcript_years"))
+    if discovery:
+        years = {int(year.strip()) for year in configuration["transcript_years"].split(",")}
+        manifest += discover_transcripts(fetcher, years, state)
     failures = []
     urls = {item["url"] for item in manifest}
     if len(urls) != len(manifest):
         raise ValueError("Duplicate URLs in document manifest")
-    # The manifest is authoritative: removed documents are removed from all current tables.
+    # Static manifest removals delete documents. Sitemap absence never deletes transcripts,
+    # including checkpoints created before migration from the transcript manifest.
     for docid, previous in list(completed.items()):
-        if previous["source_url"] not in urls:
+        if previous["source_url"] not in urls and not (discovery and previous["kind"] == "transcript"):
             delete_document(docid, previous)
             op.delete(table="fetch_status", keys={"source_url": previous["source_url"]})
             del completed[docid]

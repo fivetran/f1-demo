@@ -1,1 +1,6 @@
-{"manifest_path":"manifest.full.json","cache_dir":".cache","refresh":"false"}
+{
+  "manifest_path": "manifest.full.json",
+  "cache_dir": ".cache",
+  "refresh": "false",
+  "transcript_years": "2025"
+}
