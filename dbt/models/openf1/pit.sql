@@ -7,4 +7,3 @@ select
     source_row.`pit_duration`,
     source_row.`stop_duration`
 from {{ source('openf1', 'pit') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

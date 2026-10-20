@@ -7,4 +7,3 @@ select
     source_row.`gap_to_leader`,
     source_row.`interval`
 from {{ source('openf1', 'intervals') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

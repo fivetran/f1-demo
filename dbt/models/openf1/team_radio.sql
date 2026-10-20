@@ -4,4 +4,3 @@ select
     source_row.`recording_url`,
     source_row.`session_key`
 from {{ source('openf1', 'team_radio') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

@@ -9,4 +9,3 @@ select
     s.conference_type,
     s.association_method
 from {{ source('documents', 'transcripts') }} s
-where not coalesce(s._fivetran_deleted, false)

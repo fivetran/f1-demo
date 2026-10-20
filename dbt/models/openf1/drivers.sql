@@ -9,7 +9,6 @@ select distinct
     ) as headshot_url,
     d.last_name, d.name_acronym
 from {{ source('openf1', 'drivers') }} as d
-left join {{ source('openf1', 'sessions') }} as s on d.session_key = s.session_key and not coalesce(s._fivetran_deleted, false)
+left join {{ source('openf1', 'sessions') }} as s on d.session_key = s.session_key
 left join {{ ref('driver_identity_map') }} as identity
     on s.year = identity.season and d.driver_number = identity.driver_number
-where not coalesce(d._fivetran_deleted, false)

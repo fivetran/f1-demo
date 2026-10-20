@@ -7,4 +7,3 @@ select
     source_row.`row_count`,
     source_row.`completed_at`
 from {{ source('openf1', 'sync_status') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

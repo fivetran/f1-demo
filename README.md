@@ -1,6 +1,6 @@
 # F1: from API to agent
 
-Two Fivetran connectors load OpenF1 race data and official documents into BigQuery. dbt builds normalized racing tables and one-to-one document tables with managed embeddings and hybrid indexes, and publishes the AGENTS context used by F1 Analyst in Gemini Enterprise.
+Two Fivetran connectors load OpenF1 race data and official documents into BigQuery. dbt builds normalized racing tables and one-to-one document tables with embeddings computed in dbt and hybrid indexes, and publishes the AGENTS context used by F1 Analyst in Gemini Enterprise.
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ flowchart LR
 |---|---|
 | Ingestion | [OpenF1 connector](connectors/openf1/) and [documents connector](connectors/documents/); sources stay in `f1_openf1` and `f1_documents`. |
 | Normalization | [dbt models](dbt/models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
-| Document search | [Native document models](dbt/models/documents/) preserve each collection's schema one-to-one. [Idempotent hooks](dbt/macros/document_search.sql) add embeddings to the three passage tables. Parent metadata stays separate and is joined for citations. |
+| Document search | [Native document models](dbt/models/documents/) preserve each collection's schema one-to-one. The three passage models compute embeddings in their SELECT queries; [idempotent hooks](dbt/macros/document_search.sql) create hybrid indexes. Parent metadata stays separate and is joined for citations. |
 | Agent context | [Five inline SQL models](dbt/models/agents/) build `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`. |
 | Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
@@ -52,7 +52,7 @@ Edit the five [catalog SQL models](dbt/models/agents/) directly. ROOT selects on
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:agents_schema --threads 4 --no-manage-state)
 ```
 
-No seeds, generator, or publication hook are needed. Tables update individually, so refresh the agent context only after the complete catalog build succeeds. Check search readiness separately because embeddings and indexing are asynchronous:
+No seeds, generator, or publication hook are needed. Tables update individually, so refresh the agent context only after the complete catalog build succeeds. Embedding failures fail the model load; check index readiness separately because indexing is asynchronous:
 
 ```sh
 .venv/bin/python scripts/configure_data_agent.py

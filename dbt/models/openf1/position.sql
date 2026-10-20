@@ -6,4 +6,3 @@ select
     source_row.`session_key`,
     source_row.`position`
 from {{ source('openf1', 'position') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

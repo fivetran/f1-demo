@@ -1,4 +1,4 @@
-"""Show asynchronous embedding/index readiness and optionally try a hybrid query."""
+"""Show embedding/index readiness and optionally try vector, keyword and hybrid queries."""
 
 import argparse
 import json
@@ -16,23 +16,17 @@ COLLECTIONS = {"transcript": "transcript_passages", "regulation": "regulation_se
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--query", action="store_true", help="Run each source hybrid example and show index usage")
+    parser.add_argument("--query", action="store_true", help="Run the vector, keyword and hybrid examples and show index usage")
     args = parser.parse_args()
     client = bigquery.Client(project=PROJECT, location="US")
     tables = ", ".join(f"'{table}'" for table in COLLECTIONS.values())
     queries = {
         "embeddings": " UNION ALL ".join(f"""
             SELECT '{kind}' AS source, COUNT(*) AS passages,
-              COUNTIF(embedding.status = '' AND ARRAY_LENGTH(embedding.result) = 3072) AS ready,
-              COUNTIF(embedding IS NULL OR embedding.status IS NULL) AS pending,
-              COUNTIF(embedding.status != '') AS errors
+              COUNTIF(ARRAY_LENGTH(embedding) = 3072) AS ready,
+              COUNTIF(embedding IS NULL OR ARRAY_LENGTH(embedding) != 3072) AS invalid
             FROM `{PROJECT}.f1.{table}`
         """ for kind, table in COLLECTIONS.items()),
-        "generation": f"""
-            SELECT table_name, async_generation_status
-            FROM `{PROJECT}.f1.INFORMATION_SCHEMA.COLUMNS`
-            WHERE table_name IN ({tables}) AND column_name = 'embedding'
-        """,
         "index": f"""
             SELECT table_name, index_name, index_status, coverage_percentage, last_refresh_time
             FROM `{PROJECT}.f1.INFORMATION_SCHEMA.VECTOR_INDEXES`

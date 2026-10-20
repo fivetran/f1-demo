@@ -13,5 +13,4 @@ select distinct
     end as driver_id
 from {{ source('openf1', 'drivers') }} as d
 left join {{ source('openf1', 'sessions') }} as s
-    on d.session_key = s.session_key and not coalesce(s._fivetran_deleted, false)
-where not coalesce(d._fivetran_deleted, false)
+    on d.session_key = s.session_key

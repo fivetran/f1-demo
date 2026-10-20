@@ -8,4 +8,3 @@ select
     source_row.`gmt_offset`,
     source_row.`is_cancelled`
 from {{ source('openf1', 'sessions') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

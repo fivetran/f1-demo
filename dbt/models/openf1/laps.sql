@@ -15,4 +15,3 @@ select
     source_row.`segments_sector_3`,
     source_row.`st_speed`
 from {{ source('openf1', 'laps') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

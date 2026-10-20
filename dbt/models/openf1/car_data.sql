@@ -11,4 +11,3 @@ select
     source_row.`speed`,
     source_row.`throttle`
 from {{ source('openf1', 'car_data') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

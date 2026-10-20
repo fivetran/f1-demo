@@ -7,7 +7,7 @@ with profiles as (
             order by source_row.date_start desc, source_row.meeting_key desc
         ) as presentation
     from {{ source('openf1', 'meetings') }} as source_row
-    where not coalesce(source_row._fivetran_deleted, false)
+
 )
 select distinct
     circuit_key, country_key, circuit_short_name, circuit_type,

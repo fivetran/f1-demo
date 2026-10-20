@@ -31,15 +31,22 @@ Drivers are people, teams are named team identities, and session_entries assigns
 
 ## Documents
 
-Transcript coverage remains 2025. Search `f1.transcript_passages` for quotes, `f1.regulation_sections` for rules, and `f1.glossary_sections` for definitions. Each collection has its own schema. Join passages to their parent (`transcripts`, `regulations`, or `glossary`) on `document_id` to obtain title, source_url and collection-specific metadata. Join transcripts to `f1.meetings` for race context. The document tables contain active source rows; deleted source rows are excluded. Speaker labels are not verified identities.
+All query tables include source rows marked deleted.
+
+Transcript coverage remains 2025. Search `f1.transcript_passages` for quotes, `f1.regulation_sections` for rules, and `f1.glossary_sections` for definitions. Each collection has its own schema. Join passages to their parent (`transcripts`, `regulations`, or `glossary`) on `document_id` to obtain title, source_url and collection-specific metadata. Join transcripts to `f1.meetings` for race context. Document tables include source rows marked deleted. Passage tables also retain previously loaded rows if they disappear from the source. Speaker labels are not verified identities.
 
 Read the complete `text` and retrieve neighboring passages ordered by the qualified column `p.position` within a document. Regulation sections follow headings through level three (1.1.1), retaining deeper clauses and page continuations. Section numbers may repeat. Glossary sections follow HTML headings. Publication dates are not event/effective dates; unknown regulation effective dates remain null. Current glossary pages are not historical law.
 
 ## Hybrid document retrieval
 
-Use `AI.SEARCH` with the collection's passage table, search column `text`, and explicit `mode => 'HYBRID'`. Search each relevant collection separately for cross-source questions. Join the results to their parent for citations and applicability. Parent metadata is not duplicated in passage rows; filter parent criteria through document_id when restricting retrieval. Small sources support hybrid search without an index.
+Choose retrieval per question; there is no mandatory search mode:
+- Semantic concepts or paraphrases: `VECTOR_SEARCH` on `embedding`, with a query vector from `AI.EMBED(query_text, endpoint => 'gemini-embedding-2').result` and COSINE distance.
+- Specific words or names: `SEARCH(text, 'terms')` in a WHERE clause. SEARCH is a boolean token match requiring all supplied terms, not a relevance score or semantic match. For an exact substring use STRPOS or LIKE; for known section numbers prefer equality on section. Apply ordinary SQL ordering and limits as appropriate.
+- Both: single-query `VECTOR_SEARCH` with `lexical_search_columns => ['text']` and `lexical_search_query_value => query_text` combines semantic and keyword retrieval (Preview). Alternatively run the two searches separately and deduplicate evidence by (document_id, position).
+Search each relevant collection separately. Join passages to their parent for citations and applicability; filter parent criteria through document_id before retrieval. Small tables support these queries without index acceleration. Do not use AI.SEARCH: these tables have ordinary embedding arrays, not autonomous generated embeddings.
 
-Gemini Embedding 2 embeds up to 8,192 input tokens, truncating oversized inputs while the complete text remains stored for RAG. A usable embedding has empty status and a 3072-element result. Missing embeddings are omitted from search; compare embedding_ready_count with row_count when freshness matters. Hybrid matches are relevant evidence, not exhaustive counts or calibrated confidence scores. Always inspect full text and cite the parent's source_url.
+Gemini Embedding 2 embeds up to 8,192 input tokens, truncating oversized inputs while the complete text remains stored for RAG. Embeddings are 3072-element ARRAY<FLOAT64> values. Compare embedding_ready_count with row_count when checking coverage. Vector and hybrid matches are relevant evidence, not exhaustive counts or calibrated confidence scores. Always inspect full text and cite the parent's source_url.
+
 
 ## Findings from warehouse profiling
 
@@ -185,11 +192,14 @@ Question: Explain dirty air and loss of downforce when following another car, us
 ```sql
 select hits.base.document_id, hits.base.position, d.title,
        hits.base.text, d.source_url, hits.distance
-from ai.search(
+from vector_search(
     (select p.* from `{{ target.database }}.f1.glossary_sections` p
      where p.document_id in (
          select d.document_id from `{{ target.database }}.f1.glossary` d)),
-    'text', 'dirty air and loss of downforce when following another car', mode => 'HYBRID', top_k => 5
+    'embedding',
+    query_value => ai.embed('dirty air and loss of downforce when following another car',
+        endpoint => 'gemini-embedding-2').result,
+    distance_type => 'COSINE', top_k => 5
 ) hits
 join `{{ target.database }}.f1.glossary` d
   on hits.base.document_id = d.document_id
@@ -197,19 +207,16 @@ join `{{ target.database }}.f1.glossary` d
 
 ## search_regulations
 
-Question: Find regulations about leaving the track and gaining a lasting advantage, with citations.
+Question: Find regulation passages containing the words lasting advantage, with citations.
 
 ```sql
-select hits.base.document_id, hits.base.position, d.title,
-       hits.base.text, d.source_url, d.rule_family, d.effective_from, d.effective_to, hits.distance
-from ai.search(
-    (select p.* from `{{ target.database }}.f1.regulation_sections` p
-     where p.document_id in (
-         select d.document_id from `{{ target.database }}.f1.regulations` d)),
-    'text', 'leaving the track and gaining a lasting advantage', mode => 'HYBRID', top_k => 5
-) hits
-join `{{ target.database }}.f1.regulations` d
-  on hits.base.document_id = d.document_id
+select p.document_id, p.position, d.title, p.section,
+       p.text, d.source_url, d.rule_family, d.effective_from, d.effective_to
+from `{{ target.database }}.f1.regulation_sections` p
+join `{{ target.database }}.f1.regulations` d on p.document_id = d.document_id
+where search(p.text, 'lasting advantage')
+order by p.document_id, p.position
+limit 20
 ```
 
 ## search_transcripts
@@ -219,11 +226,16 @@ Question: Find post-race comments about tyre degradation and managing tyres, wit
 ```sql
 select hits.base.document_id, hits.base.position, d.title,
        hits.base.text, d.source_url, hits.base.speaker, hits.base.question, hits.distance
-from ai.search(
+from vector_search(
     (select p.* from `{{ target.database }}.f1.transcript_passages` p
      where p.document_id in (
          select d.document_id from `{{ target.database }}.f1.transcripts` d where d.conference_type = 'post-race')),
-    'text', 'tyre degradation and managing the tyres during the race', mode => 'HYBRID', top_k => 5
+    'embedding',
+    query_value => ai.embed('tyre degradation and managing the tyres during the race',
+        endpoint => 'gemini-embedding-2').result,
+    lexical_search_columns => ['text'],
+    lexical_search_query_value => 'tyre degradation and managing the tyres during the race',
+    distance_type => 'COSINE', top_k => 5
 ) hits
 join `{{ target.database }}.f1.transcripts` d
   on hits.base.document_id = d.document_id

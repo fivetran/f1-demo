@@ -1,0 +1,10 @@
+functions:
+- name: embed_text
+  description: Return a Gemini Embedding 2 vector or fail the query on an embedding error.
+  config:
+    tags: [document_search]
+  arguments:
+  - name: content
+    data_type: STRING
+  returns:
+    data_type: ARRAY<FLOAT64>

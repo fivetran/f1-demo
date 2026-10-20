@@ -534,54 +534,54 @@ from unnest(array<struct<table_name string, measure_name string, sql_expression 
         r"""{{ target.database }}.f1.transcripts""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+        r"""Rows at this table grain. Aggregate before one-many joins."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+        r"""Rows at this table grain. Aggregate before one-many joins."""
     ),
     (
         r"""{{ target.database }}.f1.transcript_passages""",
         r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
-        r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
+        r"""COUNTIF(ARRAY_LENGTH(t.embedding) = 3072)""",
+        r"""Passages available for semantic search; compare to row_count. Embeddings use Gemini Embedding 2 with 3072 dimensions."""
     ),
     (
         r"""{{ target.database }}.f1.regulations""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+        r"""Rows at this table grain. Aggregate before one-many joins."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_sections""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+        r"""Rows at this table grain. Aggregate before one-many joins."""
     ),
     (
         r"""{{ target.database }}.f1.regulation_sections""",
         r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
-        r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
+        r"""COUNTIF(ARRAY_LENGTH(t.embedding) = 3072)""",
+        r"""Passages available for semantic search; compare to row_count. Embeddings use Gemini Embedding 2 with 3072 dimensions."""
     ),
     (
         r"""{{ target.database }}.f1.glossary""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+        r"""Rows at this table grain. Aggregate before one-many joins."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_sections""",
         r"""row_count""",
         r"""COUNT(*)""",
-        r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
+        r"""Rows at this table grain. Aggregate before one-many joins."""
     ),
     (
         r"""{{ target.database }}.f1.glossary_sections""",
         r"""embedding_ready_count""",
-        r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
-        r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
+        r"""COUNTIF(ARRAY_LENGTH(t.embedding) = 3072)""",
+        r"""Passages available for semantic search; compare to row_count. Embeddings use Gemini Embedding 2 with 3072 dimensions."""
     )
 ])

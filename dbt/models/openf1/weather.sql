@@ -9,4 +9,3 @@ select
     source_row.`wind_direction`,
     source_row.`wind_speed`
 from {{ source('openf1', 'weather') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

@@ -7,4 +7,3 @@ select
     source_row.`lap_start`,
     source_row.`tyre_age_at_start`
 from {{ source('openf1', 'stints') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

@@ -2,11 +2,11 @@
 with source_teams as (
     select d.session_key, d.team_name
     from {{ source('openf1', 'drivers') }} as d
-    where not coalesce(d._fivetran_deleted, false)
+
     union distinct
     select standing.session_key, standing.team_name
     from {{ source('openf1', 'championship_teams') }} as standing
-    where not coalesce(standing._fivetran_deleted, false)
+
 )
 select distinct
     s.year as season,
@@ -19,4 +19,4 @@ select distinct
     source_team.team_name
 from source_teams as source_team
 left join {{ source('openf1', 'sessions') }} as s
-    on source_team.session_key = s.session_key and not coalesce(s._fivetran_deleted, false)
+    on source_team.session_key = s.session_key

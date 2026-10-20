@@ -10,4 +10,3 @@ select
     source_row.`position`,
     source_row.`points`
 from {{ source('openf1', 'session_result') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

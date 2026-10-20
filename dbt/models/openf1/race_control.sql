@@ -11,4 +11,3 @@ select
     source_row.`scope`,
     source_row.`sector`
 from {{ source('openf1', 'race_control') }} as source_row
-where not coalesce(source_row._fivetran_deleted, false)

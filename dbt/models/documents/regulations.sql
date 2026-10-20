@@ -11,4 +11,3 @@ select
     s.effective_from,
     s.effective_to
 from {{ source('documents', 'regulations') }} s
-where not coalesce(s._fivetran_deleted, false)
