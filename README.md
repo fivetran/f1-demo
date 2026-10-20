@@ -21,12 +21,12 @@ flowchart LR
 | Component | Implementation |
 |---|---|
 | Ingestion | [OpenF1 connector](connectors/openf1/) and [documents connector](connectors/documents/); sources stay in `f1_openf1` and `f1_documents`. |
-| Normalization | [dbt models](dbt/models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
-| Document search | [Native document models](dbt/models/documents/) preserve each collection's schema one-to-one. The three passage models compute embeddings in their SELECT queries; [idempotent hooks](dbt/macros/document_search.sql) create hybrid indexes. Parent metadata stays separate and is joined for citations. |
-| Agent context | The [publication macro](dbt/macros/publish_agents_schema.sql) builds `agents.root`, `dbt_tables`, `dbt_columns`, `dbt_joins`. |
+| Normalization | [dbt models](models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
+| Document search | [Native document models](models/documents/) preserve each collection's schema one-to-one. The three passage models compute embeddings in their SELECT queries; [idempotent hooks](macros/document_search.sql) create hybrid indexes. Parent metadata stays separate and is joined for citations. |
+| Agent context | The [publication macro](macros/publish_agents_schema.sql) builds `agents.root`, `dbt_tables`, `dbt_columns`, `dbt_joins`. |
 | Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
-OpenF1 covers 2025 and completed 2026 races; documents cover 2025 regulations and transcripts plus current glossary pages. Driver numbers identify session entries, not permanent people. Starting grids use Qualifying session keys and join Race sessions through the meeting. [ROOT guidance](dbt/macros/publish_agents_schema.sql) explains the other query limitations.
+OpenF1 covers 2025 and completed 2026 races; documents cover 2025 regulations and transcripts plus current glossary pages. Driver numbers identify session entries, not permanent people. Starting grids use Qualifying session keys and join Race sessions through the meeting. [ROOT guidance](macros/publish_agents_schema.sql) explains the other query limitations.
 
 The document connector discovers transcripts from the FIA sitemap from `transcript_start_year` (currently `2025`) through the current UTC year, inclusive. Each sync automatically includes new years. Legacy `transcript_years` configurations use their earliest year as the start. Publication dates associate transcripts with race weekends using the OpenF1 calendar. Regulations and glossary pages use fixed URLs in the [document manifest](connectors/documents/manifest.full.json). A transcript disappearing from the sitemap does not delete previously ingested text.
 
@@ -49,16 +49,16 @@ f1_demo:
       threads: 4
 ```
 
-Deploy connectors with the Fivetran Connector SDK and trigger syncs in Fivetran. After successful syncs, build with local Fusion:
+Deploy connectors with the Fivetran Connector SDK and trigger syncs in Fivetran. After successful syncs, build with local Fusion from the repository root:
 
 ```sh
-(cd dbt && dbt build --threads 4 --no-manage-state)
+dbt build --threads 4
 ```
 
-Edit table and column descriptions in [OpenF1 schema.yml](dbt/models/openf1/schema.yml) and [document schema.yml](dbt/models/documents/schema.yml). Model `config.meta.agent_catalog` holds primary keys, row filters and joins, and opts models into the catalog. The [on-run-end macro](dbt/macros/publish_agents_schema.sql) publishes all four catalog tables after successful nonempty `run`/`build` commands, including focused selections. ROOT dataset overview and unstructured retrieval guidance live in the macro’s `root_content` block. Refresh all four catalog tables in `agents`:
+Edit table and column descriptions in [OpenF1 schema.yml](models/openf1/schema.yml) and [document schema.yml](models/documents/schema.yml). Model `config.meta.agent_catalog` holds primary keys, row filters and joins, and opts models into the catalog. The [on-run-end macro](macros/publish_agents_schema.sql) publishes all four catalog tables after successful nonempty `run`/`build` commands, including focused selections. ROOT dataset overview and unstructured retrieval guidance live in the macro’s `root_content` block. Refresh all four catalog tables in `agents`:
 
 ```sh
-(cd dbt && dbt run-operation publish_agents_schema --no-manage-state)
+dbt run-operation publish_agents_schema
 ```
 
 No seeds or external generator are needed. The hook publishes metadata for all catalog-marked models, not just the selected models. Tables update individually, so refresh the agent context only after the complete catalog publication succeeds. Embedding failures fail the model load; index maintenance is asynchronous. Deploy or refresh the analyst from the successfully published catalog using ADC:

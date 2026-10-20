@@ -11,9 +11,13 @@ service-account*.json
 files/
 warehouse.db
 connector_state.json
-dbt/target/
-dbt/logs/
-dbt/.user.yml
+
+# dbt generated files
+/target/
+/logs/
+/dbt_packages/
+/dbt_internal_packages/
+/.user.yml
 
 .DS_Store
 
@@ -26,4 +30,3 @@ dbt/.user.yml
 *.key
 /inventory/
 /presentation/
-/logs/
