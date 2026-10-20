@@ -24,7 +24,7 @@ flowchart LR
 | Normalization | [dbt models](models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
 | Document search | [Native document models](models/documents/) preserve each collection's schema one-to-one. The three passage models compute embeddings in their SELECT queries; [idempotent hooks](macros/document_search.sql) create hybrid indexes. Parent metadata stays separate and is joined for citations. |
 | Agent context | The [publication macro](macros/publish_agents_schema.sql) builds `agents.root`, `dbt_tables`, `dbt_columns`, `dbt_joins`. |
-| Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
+| Experience | [Agent configuration and system prompt](agents/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
 OpenF1 covers 2025 and completed 2026 races; documents cover 2025 regulations and transcripts plus current glossary pages. Driver numbers identify session entries, not permanent people. Starting grids use Qualifying session keys and join Race sessions through the meeting. [ROOT guidance](macros/publish_agents_schema.sql) explains the other query limitations.
 
@@ -32,9 +32,9 @@ The document connector discovers transcripts from the FIA sitemap from `transcri
 
 ## Setup and operation
 
-Use Python 3.12.8 and dbt Fusion 2.0.8. Create `.venv` with `python3.12 -m venv .venv`. Install connector and test dependencies with `.venv/bin/python -m pip install -r connectors/tests/requirements.txt`, and analyst deployment dependencies with `.venv/bin/python -m pip install -r scripts/requirements.txt`. Each connector retains its own deployment requirements. Use Google application-default credentials; keep credentials outside the repository. See [operations](AGENTS.md) for connector deployment and one-time IAM/embedding setup.
+Use Python 3.12.8 and dbt Fusion 2.0.8. Create `.venv` with `python3.12 -m venv .venv`. Install connector and test dependencies with `.venv/bin/python -m pip install -r connectors/tests/requirements.txt`, and analyst deployment dependencies with `.venv/bin/python -m pip install -r agents/requirements.txt`. Each connector retains its own deployment requirements. Use Google application-default credentials; keep credentials outside the repository. See [operations](AGENTS.md) for connector deployment and one-time IAM/embedding setup.
 
-Add the following named profile to `~/.dbt/profiles.yml`, preserving any other profiles. Replace the project placeholder with your GCP project ID. dbt uses this local profile directly. Keep the project ID in `scripts/configure_data_agent.py` aligned with this profile; no `.env` file is required.
+Add the following named profile to `~/.dbt/profiles.yml`, preserving any other profiles. Replace the project placeholder with your GCP project ID. dbt uses this local profile directly. Keep the project ID in `agents/configure_data_agent.py` aligned with this profile; no `.env` file is required.
 
 ```yaml
 f1_demo:
@@ -64,10 +64,10 @@ dbt run-operation publish_agents_schema
 No seeds or external generator are needed. The hook publishes metadata for all catalog-marked models, not just the selected models. Tables update individually, so refresh the agent context only after the complete catalog publication succeeds. Embedding failures fail the model load; index maintenance is asynchronous. Deploy or refresh the analyst from the successfully published catalog using ADC:
 
 ```sh
-.venv/bin/python scripts/configure_data_agent.py
+.venv/bin/python agents/configure_data_agent.py
 ```
 
-Run connector behavior checks with `.venv/bin/python -m pytest`. Use `dbt parse` with the same profile flags for a parse-only check. There is no recurring schedule; local Fusion is the execution path. The Gemini Enterprise trial expires November 12, 2026.
+Run connector behavior checks with `.venv/bin/python -m pytest`. Use `dbt parse` with the same profile flags for a parse-only check. There is no recurring schedule. [GitHub CI](agents/README.md) triggers and waits for the dbt Cloud warehouse build, deploys the analyst and stores evaluation results in BigQuery on pushes to main; local Fusion remains available. The Gemini Enterprise trial expires November 12, 2026.
 
 ## License
 

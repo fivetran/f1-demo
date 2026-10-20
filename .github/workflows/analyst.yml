@@ -1,0 +1,72 @@
+name: Deploy analyst and evaluate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.8'
+      - run: python evals/run.py --check
+      - run: python -m pip install -r agents/requirements.txt
+      - run: python -m unittest discover -s evals -p 'test_*.py'
+      - run: python -m unittest discover -s agents -p 'test_*.py'
+
+  deploy-and-evaluate:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    environment: production
+    concurrency:
+      group: f1-analyst-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.8'
+          cache: pip
+          cache-dependency-path: agents/requirements.txt
+      - run: python -m pip install -r agents/requirements.txt
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - name: Build warehouse in dbt Cloud
+        timeout-minutes: 65
+        env:
+          DBT_CLOUD_HOST: ${{ vars.DBT_CLOUD_HOST }}
+          DBT_CLOUD_ACCOUNT_ID: ${{ vars.DBT_CLOUD_ACCOUNT_ID }}
+          DBT_CLOUD_JOB_ID: ${{ vars.DBT_CLOUD_JOB_ID }}
+          DBT_CLOUD_TOKEN: ${{ secrets.DBT_CLOUD_TOKEN }}
+        run: python agents/run_dbt_cloud.py
+      - name: Deploy analyst
+        run: python agents/configure_data_agent.py
+      - name: Evaluate published analyst
+        id: eval
+        timeout-minutes: 160
+        run: python evals/run.py --seed 42 --workers 4 --output evals/results/ci.jsonl
+      - name: Upload evaluation results
+        if: ${{ always() && (steps.eval.outcome == 'success' || steps.eval.outcome == 'failure' || steps.eval.outcome == 'cancelled') }}
+        env:
+          EVAL_RUN_ID: github_${{ github.run_id }}_${{ github.run_attempt }}
+          EVAL_COMMIT: ${{ github.sha }}
+          EVAL_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+        run: >-
+          python evals/upload.py evals/results/ci.jsonl
+          --run-id "$EVAL_RUN_ID" --commit-sha "$EVAL_COMMIT" --run-url "$EVAL_RUN_URL"

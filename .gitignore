@@ -30,3 +30,6 @@ connector_state.json
 *.key
 /inventory/
 /presentation/
+
+# GitHub OIDC ADC files
+gha-creds-*.json

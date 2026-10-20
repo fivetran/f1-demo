@@ -8,7 +8,7 @@ From the repository root, using the existing virtual environment and Google ADC:
 
 ```sh
 # Install only if these existing operational dependencies are missing:
-.venv/bin/python -m pip install -r scripts/requirements.txt
+.venv/bin/python -m pip install -r agents/requirements.txt
 
 # Offline dataset validation:
 .venv/bin/python evals/run.py --check
@@ -23,7 +23,7 @@ From the repository root, using the existing virtual environment and Google ADC:
 .venv/bin/python evals/run.py --id 03_monaco_margin --seed 42
 ```
 
-The runner reuses the agent endpoint and name from [configure_data_agent.py](../scripts/configure_data_agent.py).
+The runner reuses the agent endpoint and name from [configure_data_agent.py](../agents/configure_data_agent.py).
 It creates a fresh stateless request for each question, with the published agent's normal tools.
 Only the question, shuffled choices, and response-format instructions go to the agent;
 answer keys and evidence never enter the prompt. Each request can take up to several minutes. A full run makes 100 agent calls, with four in flight by default. Each request has its own HTTP session.
@@ -73,3 +73,32 @@ comprehensive test of all F1 questions. Several questions share a race or source
 known results may be answered from memory. Scores do not establish tool use or citation quality.
 Review failed responses before editing the agent. Keep the dataset and seed fixed when comparing
 runs, and refresh the published agent after any intended catalog changes before evaluating them.
+
+## BigQuery and CI
+
+See [CI setup](../agents/README.md) for the workflow and required Google/GitHub setup.
+Use `--output results-path.jsonl` to choose an explicit, new report path.
+After a run (including one that exits 1), upload its report:
+
+```sh
+.venv/bin/python evals/upload.py evals/results/REPORT.jsonl \
+  --run-id UNIQUE_RUN_ID --commit-sha "$(git rev-parse HEAD)"
+```
+
+For a subset, also pass `--expected-count N`. Use a new run ID for each evaluation
+attempt; reuse the same ID only when retrying the same immutable report. The uploader
+reuses a deterministic BigQuery load job ID on retry. BigQuery job history is finite;
+this is not a permanent deduplication constraint. A failed load job needs a new run ID
+once its cause is fixed. Upload failures return nonzero.
+
+`f1_evals.results` contains one row per completed question, partitioned by
+`run_started_at` and clustered by question ID and category. It preserves the JSONL
+fields (including API messages as JSON), plus run ID, commit SHA, CI URL and
+expected/completed counts. An incomplete report uploads available rows and exits 1;
+an empty/missing report fails without creating rows. Use expected count as the overall
+accuracy denominator. Failed and invalid answers and request errors count against it.
+Compare only complete runs with the same question suite and seed. The commit identifies
+the deployed code in CI, but warehouse data can change independently.
+
+The dataset is separate from the agent's knowledge sources and is not catalog-published.
+Keep access restricted because responses can contain private warehouse references.

@@ -89,6 +89,7 @@ def main():
     parser.add_argument('--id', action='append', help='Run only this question ID; repeat to select several')
     parser.add_argument('--seed', type=int, default=42, help='Reproducible choice shuffle')
     parser.add_argument('--workers', type=int, default=4, help='Concurrent questions (default: 4; use 1 for serial)')
+    parser.add_argument('--output', type=Path, help='JSONL report path (must not already exist)')
     args = parser.parse_args()
     if args.workers < 1:
         parser.error('--workers must be at least 1')
@@ -105,12 +106,12 @@ def main():
     import google.auth
     from google.auth.transport.requests import AuthorizedSession
 
-    sys.path.insert(0, str(HERE.parent / 'scripts'))
+    sys.path.insert(0, str(HERE.parent / 'agents'))
     from configure_data_agent import API, NAME, PARENT
 
     timestamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
-    output = HERE / 'results' / f'{timestamp}.jsonl'
-    output.parent.mkdir(exist_ok=True)
+    output = args.output or HERE / 'results' / f'{timestamp}.jsonl'
+    output.parent.mkdir(parents=True, exist_ok=True)
     counts = Counter()
     category_counts = {}
     def run_question(q):
