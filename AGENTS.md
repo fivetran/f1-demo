@@ -6,7 +6,7 @@ Keep this project small. The user explicitly requested a minimalist implementati
 
 - Two Fivetran SDK connectors load typed OpenF1 endpoint tables and readable document tables. No generic payload/snapshot architecture.
 - dbt builds the approved [normalized models](dbt/models/openf1/) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
-- Document models preserve each source collection one-to-one in `f1`. dbt-computed embeddings and BigQuery hybrid indexes live on the three dbt passage tables; parent metadata remains separate. Five inline SQL models build exactly `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`.
+- Document models preserve each source collection one-to-one in `f1`. dbt-computed embeddings and BigQuery hybrid indexes live on the three dbt passage tables; parent metadata remains separate. Five inline SQL models build exactly `agents.root`, `tables`, `dimensions`, `measures`, `joins`.
 - OpenF1 covers 2025 and completed 2026 races; document coverage remains 2025. The authorized season replacement already completed; it is not permission for future truncations. No recurring schedule exists.
 - Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. Maintain source YAML directly when connector schemas change; there is no source generator. [The catalog models](dbt/models/agents/) document finished table grains, joins and limitations.
 
@@ -14,7 +14,7 @@ Keep this project small. The user explicitly requested a minimalist implementati
 
 - Account IDs, billing IDs, connection IDs, service-account emails and the private agent URL belong in the ignored root `.env`. Start from [.env.example](.env.example). Never copy actual values into tracked files. Historical deployment details are retained locally in ignored `infra/deployment.json`.
 - Python operational scripts load `.env` automatically; exported variables take precedence. Run Fusion through `../scripts/with_config.py` from `dbt`, or export the settings first. Local Fusion is the supported execution path.
-- Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1` and `AGENTS`; ingestion owns source datasets. Never add generated embedding columns to Fivetran-owned tables: its BigQuery schema migration rejects STRUCT columns.
+- Use the configured project in US and the existing GCP Direct billing account; never switch to Searce. The dbt identity reads sources and writes `f1` and `agents`; ingestion owns source datasets. Never add generated embedding columns to Fivetran-owned tables: its BigQuery schema migration rejects STRUCT columns.
 - Credentials stay outside the repository in `~/.config/f1-demo/credentials.json` (0600). BigQuery/Fusion use Google application-default credentials. Named gcloud login is separate. Never print tokens, full credential responses or credential-bearing subprocess arguments.
 - Python 3.12.8, Connector SDK 2.12.1, Fivetran CLI 1.0.0, dbt Fusion 2.0.8. Use the pinned requirements and `.venv` (create it with Python 3.12.8 if absent); do not replace Fusion with Python dbt-core 1.x. CLIs are also in `~/.local/bin`.
 - Remote: [fivetran/f1-demo](https://github.com/fivetran/f1-demo), dbt subdirectory `dbt`. `/tmp/f1-demo-publish` is a publishing checkout. Publish only nonignored files; exclude caches, environments, debugger files and credentials.
@@ -29,16 +29,16 @@ Run Fusion from the `dbt` directory, with four threads:
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --threads 4 --no-manage-state)
 ```
 
-Use `--select tag:document_search` or `--select tag:agents_schema` for focused work. `dbt parse` checks project parsing without rebuilding tables. Retained tests cover shared keys/identity coverage, exact source-passage preservation and connector behavior. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
+Use `--select tag:document_search` or `--select tag:agents_schema` for focused work. `dbt parse` checks project parsing without rebuilding tables. There are no dbt tests; retained Python tests cover connector behavior. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
 
 [run_pipeline.py](scripts/run_pipeline.py) uses [.env.example](.env.example) variables to force Fivetran syncs, wait for success, then run local Fusion. `--wait-existing` waits for an already-started sync.
 
-A small run-start hook restricts dbt to this project's `f1` target. It clears historical partition expiration only when time-series models are selected: a former 60-day dataset default immediately expired the 2025 data. Do not reintroduce retention or change source dataset retention.
+There is no target-validation or retention-reset hook. Historical expiration settings were cleared previously: a former 60-day dataset default immediately expired the 2025 data. Do not reintroduce retention or change source dataset retention.
 
 ## Connector and model semantics
 
 - OpenF1 accepts comma-separated `years` (legacy `year` still works); production uses `2025,2026`. Calendar metadata refreshes each sync. Detail checkpoints retain their generation across season additions, and only noncancelled Race sessions ending at least 30 minutes ago are eligible. **Starting grids use main Qualifying session keys**; associate them with Race through the meeting, without fabricating Qualifying driver entries. Sprint Qualifying is excluded.
-- Presentation metadata uses the latest non-null driver headshot by session time and the latest calendar meeting for circuit URLs/locality. Other conflicting identity attributes still fail key tests.
+- Presentation metadata uses the latest non-null driver headshot by session time and the latest calendar meeting for circuit URLs/locality. Other conflicting identity attributes require investigation.
 - Driver numbers identify entries within a session, not permanent people. Computed IDs use normalized source names and season mappings; spelling changes/cross-season continuity need deliberate reconciliation. Team colours belong in `team_sessions`. Source driver country codes are all null.
 - Normalization keeps one concept and grain per table. Driver standings may lack same-session entries and join people directly; no Qualifying entries are fabricated. Facts preserve source values without rounding, clamping or inferred lap associations. Overtakes include pit-stop/penalty exchanges and may be incomplete; race-control driver references are optional.
 - Preserve all telemetry samples, including pre/post-race timestamps. Fetch car/location data per driver/session; pace OpenF1 calls at least 2.1 seconds apart and do not run competing crawlers. Retry 429/5xx/transient failures.
@@ -67,9 +67,9 @@ Build the catalog:
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:agents_schema --threads 4 --no-manage-state)
 ```
 
-Use `{{ target.database }}` in inline table references and Markdown examples. Never put account IDs in tracked SQL. Raw triple-double-quoted strings preserve newlines, single/double quotes and backslashes; do not embed a triple-double-quote delimiter without changing the SQL quoting. The [schema naming macro](dbt/macros/generate_schema_name.sql) maps the models' AGENTS schema directly to the canonical dataset; ordinary models keep the normal target schema behavior. Each model explicitly aliases its uppercase table name.
+Use `{{ target.database }}` in inline table references and Markdown examples. Never put account IDs in tracked SQL. Raw triple-double-quoted strings preserve newlines, single/double quotes and backslashes; do not embed a triple-double-quote delimiter without changing the SQL quoting. The [schema naming macro](dbt/macros/generate_schema_name.sql) maps the custom schema `agents` directly to the `agents` dataset. Other models use dbt's default schema naming. Table names follow lowercase model filenames without alias overrides.
 
-There are no catalog seeds, generator, staging dependency, or publication hook. Models rebuild as tables and update individually; a failed build can leave a partially updated catalog. Refresh the data agent only after all five models succeed. The obsolete `f1_agents_seed` dataset and its five historical seed tables were deleted on 2026-10-19. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants AGENTS dataset WRITER access when bootstrapping.
+There are no catalog seeds, generator, staging dependency, or publication hook. Models rebuild as tables and update individually; a failed build can leave a partially updated catalog. Refresh the data agent only after all five models succeed. The obsolete `f1_agents_seed` dataset and its five historical seed tables were deleted on 2026-10-19. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants `agents` dataset WRITER access when bootstrapping.
 
 No BI Engine capacity is required. Queries use the configured billing project and US location.
 

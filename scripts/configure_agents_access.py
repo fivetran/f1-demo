@@ -13,7 +13,7 @@ ACCOUNT = os.environ["F1_DBT_SERVICE_ACCOUNT"]
 
 def main():
     client = bigquery.Client(project=PROJECT, location="US")
-    for name in ["AGENTS"]:
+    for name in ["agents"]:
         dataset = client.get_dataset(f"{PROJECT}.{name}")
         assert dataset.location == "US"
         entries = list(dataset.access_entries)

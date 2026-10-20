@@ -37,7 +37,7 @@ def main():
         print(name + ": " + json.dumps([dict(r) for r in client.query(sql).result()], default=str))
     if args.query:
         guidance = next(iter(client.query(
-            f"SELECT content FROM `{PROJECT}.AGENTS.ROOT` WHERE provider = 'user' AND key = 'user'"
+            f"SELECT content FROM `{PROJECT}.agents.root` WHERE provider = 'user' AND key = 'user'"
         ).result()))["content"]
         for example in ("search_transcripts", "search_regulations", "search_glossary"):
             sql = re.search(rf"^## {example}\n.*?```sql\n(.*?)\n```", guidance, re.M | re.S).group(1)

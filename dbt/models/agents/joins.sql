@@ -1,5 +1,3 @@
-{{ config(alias='JOINS') }}
-
 select *
 from unnest(array<struct<join_name string, from_table string, to_table string, join_type string, sql_expression string, description string>>[
     (

@@ -23,14 +23,14 @@ def main():
     client = bigquery.Client(project=PROJECT, credentials=credentials, location="US")
 
     def read_catalog(name):
-        return name, [dict(r) for r in client.query(f"SELECT * FROM `{PROJECT}.AGENTS.{name}`").result()]
+        return name, [dict(r) for r in client.query(f"SELECT * FROM `{PROJECT}.agents.{name}`").result()]
 
     with ThreadPoolExecutor(max_workers=5) as pool:
-        catalog = dict(pool.map(read_catalog, ["ROOT", "TABLES", "DIMENSIONS", "MEASURES", "JOINS"]))
-    if len(catalog["ROOT"]) != 1 or (catalog["ROOT"][0]["provider"], catalog["ROOT"][0]["key"]) != ("user", "user"):
-        raise ValueError("AGENTS.ROOT must contain exactly one user/user row")
-    guidance = catalog["ROOT"][0]["content"]
-    descriptions = {(r["table_name"], r["column_name"]): r["description"] for r in catalog["DIMENSIONS"]}
+        catalog = dict(pool.map(read_catalog, ["root", "tables", "dimensions", "measures", "joins"]))
+    if len(catalog["root"]) != 1 or (catalog["root"][0]["provider"], catalog["root"][0]["key"]) != ("user", "user"):
+        raise ValueError("agents.root must contain exactly one user/user row")
+    guidance = catalog["root"][0]["content"]
+    descriptions = {(r["table_name"], r["column_name"]): r["description"] for r in catalog["dimensions"]}
 
     def field_schema(field, table):
         result = dict(name=field.name, type=field.field_type, mode=field.mode,
@@ -50,7 +50,7 @@ def main():
         ))
 
     with ThreadPoolExecutor(max_workers=5) as pool:
-        sources = list(pool.map(table_reference, catalog["TABLES"]))
+        sources = list(pool.map(table_reference, catalog["tables"]))
     instructions = (
         "You are F1 Analyst. Answer questions about the loaded Formula 1 seasons. "
         "Use read-only queries; never create, change or delete warehouse objects. "
@@ -70,8 +70,8 @@ def main():
         "Use only the finished tables listed as knowledge sources. "
         "The following context comes from the published AGENTS catalog.\n\n"
         + guidance + "\n\nMeasures:\n"
-        + json.dumps(catalog["MEASURES"], ensure_ascii=False)
-        + "\n\nJoins:\n" + json.dumps(catalog["JOINS"], ensure_ascii=False)
+        + json.dumps(catalog["measures"], ensure_ascii=False)
+        + "\n\nJoins:\n" + json.dumps(catalog["joins"], ensure_ascii=False)
     )
     examples = [dict(naturalLanguageQuestion=question.strip(), sqlQuery=sql.strip())
                 for question, sql in re.findall(r"^Question: ([^\n]+)\n\n```sql\n(.*?)\n```", guidance, re.M | re.S)]

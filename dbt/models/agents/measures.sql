@@ -1,5 +1,3 @@
-{{ config(alias='MEASURES') }}
-
 select *
 from unnest(array<struct<table_name string, measure_name string, sql_expression string, description string>>[
     (

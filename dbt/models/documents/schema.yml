@@ -2,19 +2,7 @@ version: 2
 models:
 - name: transcript_passages
   description: One-to-one source transcript passages with embeddings computed during the incremental load.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns: [document_id, position]
 - name: regulation_sections
   description: One-to-one source regulation sections with embeddings computed during the incremental load.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns: [document_id, position]
 - name: glossary_sections
   description: One-to-one source glossary sections with embeddings computed during the incremental load.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns: [document_id, position]

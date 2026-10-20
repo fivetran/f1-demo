@@ -1,5 +1,3 @@
-{{ config(alias='TABLES') }}
-
 select *
 from unnest(array<struct<table_name string, description string, primary_key array<string>, row_filter string>>[
     (

@@ -1,5 +1,3 @@
-{{ config(alias='DIMENSIONS') }}
-
 select *
 from unnest(array<struct<table_name string, column_name string, data_type string, description string>>[
     (

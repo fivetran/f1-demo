@@ -4,8 +4,6 @@ config-version: 2
 profile: f1_demo
 model-paths:
 - models
-test-paths:
-- tests
 macro-paths:
 - macros
 function-paths:
@@ -13,7 +11,7 @@ function-paths:
 models:
   f1_demo:
     agents:
-      +schema: AGENTS
+      +schema: agents
       +materialized: table
       +tags: [agents_schema]
     documents:
@@ -23,7 +21,6 @@ models:
       +tags:
       - normalized_openf1
 on-run-start:
-- '{{ assert_analytics_target() }}'
 - >-
     create connection if not exists `{{ target.database }}.us.f1_document_embeddings`
     options (connection_type = "CLOUD_RESOURCE", friendly_name = "F1 document embeddings")

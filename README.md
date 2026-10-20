@@ -23,7 +23,7 @@ flowchart LR
 | Ingestion | [OpenF1 connector](connectors/openf1/) and [documents connector](connectors/documents/); sources stay in `f1_openf1` and `f1_documents`. |
 | Normalization | [dbt models](dbt/models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
 | Document search | [Native document models](dbt/models/documents/) preserve each collection's schema one-to-one. The three passage models compute embeddings in their SELECT queries; [idempotent hooks](dbt/macros/document_search.sql) create hybrid indexes. Parent metadata stays separate and is joined for citations. |
-| Agent context | [Five inline SQL models](dbt/models/agents/) build `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`. |
+| Agent context | [Five inline SQL models](dbt/models/agents/) build `agents.root`, `tables`, `dimensions`, `measures`, `joins`. |
 | Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
 OpenF1 covers 2025 and completed 2026 races; documents cover 2025 regulations and transcripts plus current glossary pages. Driver numbers identify session entries, not permanent people. Starting grids use Qualifying session keys and join Race sessions through the meeting. [ROOT guidance](dbt/models/agents/root.sql) explains the other query limitations.
@@ -46,7 +46,7 @@ Or build from already-synced sources with local Fusion:
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --threads 4 --no-manage-state)
 ```
 
-Edit the five [catalog SQL models](dbt/models/agents/) directly. ROOT selects one `user`/`user` row with a multiline Markdown string; the other models contain inline metadata rows and native primary-key arrays. Build them directly in AGENTS:
+Edit the five [catalog SQL models](dbt/models/agents/) directly. ROOT selects one `user`/`user` row with a multiline Markdown string; the other models contain inline metadata rows and native primary-key arrays. Build them in `agents`:
 
 ```sh
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:agents_schema --threads 4 --no-manage-state)

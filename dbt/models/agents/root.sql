@@ -1,11 +1,9 @@
-{{ config(alias='ROOT') }}
-
 select
     'user' as provider,
     'user' as key,
     r"""# F1 dimensional catalog
 
-Start with AGENTS.TABLES, then look up DIMENSIONS, MEASURES and JOINS. AGENTS.ROOT contains one row with provider `user`, key `user`, and this Markdown document. Four dimensional metadata tables describe the finished data. The specification is pinned at https://github.com/dbt-labs/agents_schema/blob/a0bc90498302c8abb15a5e98a54c8c94df5a52f8/SPEC.md. Physical names use canonical uppercase AGENTS; data table names remain lowercase.
+Start with agents.tables, then look up dimensions, measures and joins. agents.root contains one row with provider `user`, key `user`, and this Markdown document. Four dimensional metadata tables describe the finished data. The specification is pinned at https://github.com/dbt-labs/agents_schema/blob/a0bc90498302c8abb15a5e98a54c8c94df5a52f8/SPEC.md. Physical names use lowercase model names in the agents dataset.
 
 The catalog describes the finished query tables in `{{ target.database }}.f1`: racing data and native document collections. Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All five metadata tables describe data; none copies race measurements or document bodies.
 
@@ -124,7 +122,7 @@ ORDER BY qualifying_session_key, grid_position
 Question: How many laps have ambiguous or missing tyre-stint matches?
 
 ```sql
--- Diagnostics only: this many-many range match is intentionally absent from AGENTS.JOINS.
+-- Diagnostics only: this many-many range match is intentionally absent from agents.joins.
 SELECT COUNTIF(stint_matches > 1) AS ambiguous_laps,
   COUNTIF(stint_matches = 0) AS unmatched_laps, COUNT(*) AS lap_rows
 FROM (

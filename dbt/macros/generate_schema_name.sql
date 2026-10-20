@@ -1,6 +1,6 @@
 {% macro generate_schema_name(custom_schema_name, node) -%}
-    {%- if custom_schema_name == 'AGENTS' -%}
-        AGENTS
+    {%- if custom_schema_name == 'agents' -%}
+        agents
     {%- elif custom_schema_name is none -%}
         {{ target.schema }}
     {%- else -%}

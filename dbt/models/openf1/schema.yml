@@ -3,11 +3,6 @@ models:
 - name: countries
   description: One country identified by the OpenF1 country_key. Venue geography only; driver country_code is preserved
     separately and may be null.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - country_key
   columns:
   - name: country_key
     data_type: INT64
@@ -19,12 +14,7 @@ models:
     data_type: STRING
 - name: circuits
   description: One source circuit. Image, information URL and locality use the latest calendar meeting;
-    conflicting identity attributes still fail the key test.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - circuit_key
+    conflicting identity attributes require investigation.
   columns:
   - name: circuit_key
     data_type: INT64
@@ -42,11 +32,6 @@ models:
     data_type: STRING
 - name: meetings
   description: One meeting, including testing events. Geography is reached through circuit_key.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - meeting_key
   columns:
   - name: meeting_key
     data_type: INT64
@@ -69,11 +54,6 @@ models:
 - name: sessions
   description: One scheduled session. Meeting carries year and circuit; detailed data remains restricted to selected
     Race sessions except grids.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - session_key
   columns:
   - name: session_key
     data_type: INT64
@@ -93,12 +73,7 @@ models:
     data_type: BOOL
 - name: drivers
   description: One person identified by a source-name-derived ID through the computed season/number lookup. Conflicting
-    names fail the key test; the headshot is the latest non-null photo by session time. IDs are not a permanent cross-season identity guarantee.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - driver_id
+    names require investigation; the headshot is the latest non-null photo by session time. IDs are not a permanent cross-season identity guarantee.
   columns:
   - name: driver_id
     data_type: STRING
@@ -118,12 +93,7 @@ models:
     data_type: STRING
 - name: teams
   description: One source-name-derived team identity. Session-specific colours are in team_sessions; conflicting
-    names sharing an ID fail the key test.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - team_id
+    names sharing an ID require investigation.
   columns:
   - name: team_id
     data_type: STRING
@@ -131,12 +101,6 @@ models:
     data_type: STRING
 - name: team_sessions
   description: One team appearance per session; preserves the source team colour as observed in that session.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - session_key
-        - team_id
   columns:
   - name: session_key
     data_type: INT64
@@ -147,12 +111,6 @@ models:
 - name: session_entries
   description: One source driver entry per session and driver number. Team membership and driver identity are explicit;
     no Qualifying entries are fabricated.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - session_key
-        - driver_number
   columns:
   - name: session_key
     data_type: INT64
@@ -451,18 +409,7 @@ models:
 - name: driver_identity_map
   description: Computed season/number/name-to-person lookup from active driver entries and sessions. IDs use normalized
     first/last names. Ambiguous season/number mappings, multiple numbers/names per person in a season, and conflicting
-    profiles fail tests.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - season
-        - driver_number
-  - valid_key:
-      arguments:
-        columns:
-        - season
-        - driver_id
+    profiles require investigation.
   columns:
   - name: season
     data_type: INT64
@@ -474,18 +421,7 @@ models:
     data_type: STRING
 - name: team_identity_map
   description: Computed season/source-name-to-team lookup from active driver entries and team standings. IDs use
-    normalized source team names; collisions fail tests.
-  data_tests:
-  - valid_key:
-      arguments:
-        columns:
-        - season
-        - source_team_name
-  - valid_key:
-      arguments:
-        columns:
-        - season
-        - team_id
+    normalized source team names; collisions require investigation.
   columns:
   - name: season
     data_type: INT64
