@@ -1,4 +1,4 @@
-{% macro publish_agents_catalog() %}
+{% macro publish_agents_schema() %}
     {% if not execute or flags.WHICH not in ['run', 'build', 'run-operation'] %}
         {{ return('') }}
     {% endif %}

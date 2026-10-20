@@ -23,10 +23,10 @@ flowchart LR
 | Ingestion | [OpenF1 connector](connectors/openf1/) and [documents connector](connectors/documents/); sources stay in `f1_openf1` and `f1_documents`. |
 | Normalization | [dbt models](dbt/models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
 | Document search | [Native document models](dbt/models/documents/) preserve each collection's schema one-to-one. The three passage models compute embeddings in their SELECT queries; [idempotent hooks](dbt/macros/document_search.sql) create hybrid indexes. Parent metadata stays separate and is joined for citations. |
-| Agent context | The [publication macro](dbt/macros/publish_agents_catalog.sql) builds `agents.root`, `dbt_tables`, `dbt_columns`, `dbt_joins`. |
+| Agent context | The [publication macro](dbt/macros/publish_agents_schema.sql) builds `agents.root`, `dbt_tables`, `dbt_columns`, `dbt_joins`. |
 | Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
-OpenF1 covers 2025 and completed 2026 races; documents cover 2025 regulations and transcripts plus current glossary pages. Driver numbers identify session entries, not permanent people. Starting grids use Qualifying session keys and join Race sessions through the meeting. [ROOT guidance](dbt/macros/publish_agents_catalog.sql) explains the other query limitations.
+OpenF1 covers 2025 and completed 2026 races; documents cover 2025 regulations and transcripts plus current glossary pages. Driver numbers identify session entries, not permanent people. Starting grids use Qualifying session keys and join Race sessions through the meeting. [ROOT guidance](dbt/macros/publish_agents_schema.sql) explains the other query limitations.
 
 The document connector discovers transcripts from the FIA sitemap for the configured `transcript_years` (currently `2025`). Publication dates associate them with race weekends using the OpenF1 calendar. Regulations and glossary pages use fixed URLs in the [document manifest](connectors/documents/manifest.full.json). A transcript disappearing from the sitemap does not delete previously ingested text.
 
@@ -46,10 +46,10 @@ Or build from already-synced sources with local Fusion:
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --threads 4 --no-manage-state)
 ```
 
-Edit table and column descriptions in [OpenF1 schema.yml](dbt/models/openf1/schema.yml) and [document schema.yml](dbt/models/documents/schema.yml). Model `config.meta.agent_catalog` holds primary keys, row filters and joins, and opts models into the catalog. The [on-run-end macro](dbt/macros/publish_agents_catalog.sql) publishes all four catalog tables after successful nonempty `run`/`build` commands, including focused selections. ROOT dataset overview and unstructured retrieval guidance live in the macro’s `root_content` block. Refresh all four catalog tables in `agents`:
+Edit table and column descriptions in [OpenF1 schema.yml](dbt/models/openf1/schema.yml) and [document schema.yml](dbt/models/documents/schema.yml). Model `config.meta.agent_catalog` holds primary keys, row filters and joins, and opts models into the catalog. The [on-run-end macro](dbt/macros/publish_agents_schema.sql) publishes all four catalog tables after successful nonempty `run`/`build` commands, including focused selections. ROOT dataset overview and unstructured retrieval guidance live in the macro’s `root_content` block. Refresh all four catalog tables in `agents`:
 
 ```sh
-(cd dbt && python3 ../scripts/with_config.py dbt run-operation publish_agents_catalog --profiles-dir . --no-manage-state)
+(cd dbt && python3 ../scripts/with_config.py dbt run-operation publish_agents_schema --profiles-dir . --no-manage-state)
 ```
 
 No seeds or external generator are needed. The hook publishes metadata for all catalog-marked models, not just the selected models. Tables update individually, so refresh the agent context only after the complete catalog publication succeeds. Embedding failures fail the model load; check index readiness separately because indexing is asynchronous:

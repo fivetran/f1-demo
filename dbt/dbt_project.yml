@@ -19,4 +19,4 @@ models:
 on-run-start:
 - "{{ ensure_document_connection() }}"
 on-run-end:
-- "{{ publish_agents_catalog() }}"
+- "{{ publish_agents_schema() }}"
