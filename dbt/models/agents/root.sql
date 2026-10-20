@@ -1,13 +1,13 @@
 select
     'user' as provider,
     'user' as key,
-    r"""# F1 dimensional catalog
+    r"""# F1 query catalog
 
-Start with agents.tables, then look up dimensions, measures and joins. agents.root contains one row with provider `user`, key `user`, and this Markdown document. Four dimensional metadata tables describe the finished data. The specification is pinned at https://github.com/dbt-labs/agents_schema/blob/a0bc90498302c8abb15a5e98a54c8c94df5a52f8/SPEC.md. Physical names use lowercase model names in the agents dataset.
+Start with agents.tables, then look up columns and joins. agents.root contains one row with provider `user`, key `user`, and this Markdown document. The four catalog tables are root, tables, columns and joins. This is a project-specific query catalog; physical names use lowercase model names in the agents dataset.
 
-The catalog describes the finished query tables in `{{ target.database }}.f1`: racing data and native document collections. Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All five metadata tables describe data; none copies race measurements or document bodies.
+The catalog describes the finished query tables in `{{ target.database }}.f1`: racing data and native document collections. Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All four metadata tables describe data; none copies race measurements or document bodies.
 
-DIMENSIONS documents every physical column, including numeric observations usable as row-level filters. Merely being numeric does not make a column summable. MEASURES provides the deliberate aggregate expressions and their restrictions. Use alias `t` when applying an aggregate or row_filter. JSON mini-sector arrays remain raw data, not inferred timing measures.
+COLUMNS describes physical columns, including their meanings, units, null semantics and aggregation limitations. Types come from the physical table schema. Numeric columns are not automatically summable. Use the model-provided decoded and derived columns for analysis; raw values remain available for inspection. Use alias `t` when applying a row_filter. JSON mini-sector arrays remain raw data.
 
 ## Coverage and identities
 
@@ -24,7 +24,7 @@ Drivers are people, teams are named team identities, and session_entries assigns
 5. Qualifying grid to Race result requires this path: grid -> Qualifying session -> same-meeting main Race session -> Race entry -> result, with the additional grid.driver_id = Race entry.driver_id condition. Joining only on meeting or equating the two session keys is wrong. Preserve grids with no Race result using LEFT JOIN. Position gain is source grid position minus final classified position; it is not a count of on-track overtakes or a guarantee of the actual penalty-adjusted starting position.
 6. Do not join laps directly to weather, car_data, location, position or intervals solely on session/driver. Those facts have different grains and clocks. Aggregate independently or define an as-of/interval match with an explicit maximum age and at most one chosen target per source row. Exact timestamp equality across independent feeds is not assumed.
 7. Inclusive lap-to-stint range matching is NOT a declared many-one join. Validation of 2025 found 80 laps matching multiple stint ranges and 44 with none. An analysis of pace by compound or tyre age must identify ambiguous/unmatched laps and state how they are handled; never silently choose MIN/MAX(stint_number). Stint spans are not additive distinct lap counts. A causal tyre-degradation estimate also needs comparable laps and control for fuel, traffic, weather and race-control conditions.
-8. Gap strings can contain lap labels. SAFE_CAST metrics deliberately exclude nonnumeric values; report coverage rather than convert lapped cars to zero seconds. Null timing means missing, not zero. Positive lap/sector durations are usable timings, not automatically a clean racing-lap cohort. A sum of best sectors may not correspond to any real lap.
+8. Gap strings can contain lap labels. The interval_seconds and gap_to_leader_seconds columns are null for nonnumeric values; report coverage rather than convert lapped cars to zero seconds. Null timing means missing, not zero. Recorded lap and sector durations do not automatically define a clean racing-lap cohort. A sum of best sectors may not correspond to any real lap.
 9. Pit lane_duration and stationary stop_duration are distinct. The deprecated pit_duration aliases lane_duration (all 821 profiled 2025 rows agree); never add the aliases. Only 702 of those 2025 visits have stationary timings. Neither duration measures causal race time lost to a stop. Overtakes are recorded position exchanges, including pit/penalty effects, not exclusively on-track passes. Race-control message counts are not incident counts or safety-car durations. Radio records reference audio; the press-conference corpus is not a transcription of team radio.
 
 ## Documents
@@ -43,14 +43,14 @@ Choose retrieval per question; there is no mandatory search mode:
 - Both: single-query `VECTOR_SEARCH` with `lexical_search_columns => ['text']` and `lexical_search_query_value => query_text` combines semantic and keyword retrieval (Preview). Alternatively run the two searches separately and deduplicate evidence by (document_id, position).
 Search each relevant collection separately. Join passages to their parent for citations and applicability; filter parent criteria through document_id before retrieval. Small tables support these queries without index acceleration. Do not use AI.SEARCH: these tables have ordinary embedding arrays, not autonomous generated embeddings.
 
-Gemini Embedding 2 embeds up to 8,192 input tokens, truncating oversized inputs while the complete text remains stored for RAG. Embeddings are 3072-element ARRAY<FLOAT64> values. Compare embedding_ready_count with row_count when checking coverage. Vector and hybrid matches are relevant evidence, not exhaustive counts or calibrated confidence scores. Always inspect full text and cite the parent's source_url.
+Gemini Embedding 2 embeds up to 8,192 input tokens, truncating oversized inputs while the complete text remains stored for RAG. Embeddings are 3072-element ARRAY<FLOAT64> values. Check ARRAY_LENGTH(embedding) = 3072 when inspecting embedding coverage. Vector and hybrid matches are relevant evidence, not exhaustive counts or calibrated confidence scores. Always inspect full text and cite the parent's source_url.
 
 
 ## Findings from warehouse profiling
 
 The current 2025 checkpoint feed disagrees with classified Race result point changes on 23 driver rows across Australia, China, Singapore and Las Vegas. Treat each feed as its own recorded state; do not claim every checkpoint has been reconciled to later classification. Grand Prix result points total 2,424, while the latest driver championship checkpoint totals 2,640; Race-only detail cannot explain the full championship season.
 
-The 2025 car samples include 1,160,081 brake codes of 104 and 1,157,156 throttle values above 100. The braking fraction uses only documented 0/100 codes, and the throttle mean uses only values in 0..100; always report their coverage measures. Gear codes exceed 8 on 474 samples, including within scheduled Race windows. Do not silently clamp these codes or infer their physical meaning. Some 5,604,947 car samples fall outside the scheduled session interval; retain them but select an explicit analysis window.
+The 2025 car samples include 1,160,081 brake codes of 104 and 1,157,156 throttle values above 100. is_braking decodes only documented 0/100 codes; throttle_pct contains only values in 0..100. Report COUNT of these nullable fields alongside COUNT(*) when aggregating. is_known_gear identifies codes in 0..8. Gear codes exceed 8 on 474 samples, including within scheduled Race windows. Do not silently clamp these codes or infer their physical meaning. Some 5,604,947 car samples fall outside the scheduled session interval; retain them but select an explicit analysis window.
 
 All eight regulation editions have unknown effective_from/effective_to dates. Check applicability for the subset you query.
 
@@ -58,9 +58,7 @@ All eight regulation editions have unknown effective_from/effective_to dates. Ch
 
 TABLES: one physical relation per row. table_name is fully qualified; primary_key is the grain. Apply row_filter with alias t before joins. Descriptions explain scope and limitations.
 
-DIMENSIONS: one physical column per row, including identifiers, categories, text, timestamps and raw numeric observations. Numeric columns are not automatically additive. column_name is literal; data_type matches BigQuery.
-
-MEASURES: one named aggregate per table. sql_expression is a complete BigQuery aggregate using table alias t. Apply TABLES.row_filter and description constraints first. Recompute averages/ratios from base rows; do not sum averages. Snapshot measures require one checkpoint. All aggregates must preserve the base table grain.
+COLUMNS: one physical column per row. table_name identifies its relation; column_name is literal; description explains meaning, units, nulls and appropriate use. There is no separate dimensions or measures table. Recompute averages and fractions from base rows; select one checkpoint for snapshot values.
 
 JOINS: one named directed relationship. from_table uses alias l, to_table uses r. sql_expression is the ON predicate, not a full SELECT. join_type means maximum cardinality (one-one, one-many, many-one), not INNER/LEFT. Optional relationships require LEFT JOIN. Filter both inputs before joining. Reverse joins invert cardinality. Never infer a safe fact-to-fact join from a shared dimension.
 
@@ -68,30 +66,51 @@ JOINS: one named directed relationship. from_table uses alias l, to_table uses r
 
 This coverage checklist restates the exploratory topics for the new catalog; it is not a claim to reproduce the earlier chat questions verbatim. Restrictions are part of the answer, not missing joins to be fabricated.
 
-| # | Question | Measures and relationships |
+| # | Question | Columns and relationships |
 |---|---|---|
-| 1 | Which countries and circuits hosted the season's Grands Prix? | sessions.grand_prix_count; sessions -> meetings -> circuits -> countries; exclude testing/Sprint. |
+| 1 | Which countries and circuits hosted the season's Grands Prix? | count sessions with session_name = 'Race' and no cancellation; sessions -> meetings -> circuits -> countries; exclude testing/Sprint. |
 | 2 | Who drove for each team at each race, including midseason changes? | session_entries -> drivers / teams; count distinct people, retain session membership. |
-| 3 | Who scored the most Grand Prix points, wins and podiums? | session_result.race_points / wins / podiums -> session_entries -> drivers / teams; excludes Sprint points. |
-| 4 | What were the driver and constructor standings after a selected race? | driver_standings / team_standings checkpoint_points and checkpoint_rank; filter one checkpoint and join canonical identities directly. |
+| 3 | Who scored the most Grand Prix points, wins and podiums? | sum session_result.points; count winning/top-three positions excluding DSQ -> session_entries -> drivers / teams; excludes Sprint points. |
+| 4 | What were the driver and constructor standings after a selected race? | driver_standings / team_standings points_current and position_current; filter one checkpoint and join canonical identities directly. |
 | 5 | Who gained the most positions relative to the published grid? | Qualifying -> main Race role join plus grid.driver_id = entry.driver_id; grid position minus result position; report unmatched rows and flags. |
-| 6 | Who recorded the fastest lap and best sector times at each circuit? | laps.fastest_lap_seconds / best_duration_sector_*_seconds -> entries / sessions / geography; no fabricated actual lap from best sectors. |
-| 7 | Which drivers had the most consistent comparable lap times? | laps.average_lap_seconds / lap_time_stddev_seconds; define comparable-lap cohort before aggregation. |
-| 8 | Which drivers or teams had the fastest stationary pit stops? | pit.fastest_stop_duration_seconds / average_stop_duration_seconds -> session_entries -> drivers / teams; separate lane transit. |
-| 9 | How many pit visits and tyre stints did each driver use? | pit.row_count and stints.row_count aggregated separately per entry before combining; these counts are not interchangeable. |
-| 10 | Which compounds were used, and how long were reported stints? | stints.compound / average_reported_span_laps / average_starting_tyre_age_laps; spans can overlap. |
+| 6 | Who recorded the fastest lap and best sector times at each circuit? | min laps.lap_duration / duration_sector_1/2/3 -> entries / sessions / geography; no fabricated actual lap from best sectors. |
+| 7 | Which drivers had the most consistent comparable lap times? | avg and stddev_pop of laps.lap_duration; define comparable-lap cohort before aggregation. |
+| 8 | Which drivers or teams had the fastest stationary pit stops? | min and avg of pit.stop_duration -> session_entries -> drivers / teams; separate lane transit. |
+| 9 | How many pit visits and tyre stints did each driver use? | pit and stints row counts aggregated separately per entry before combining; these counts are not interchangeable. |
+| 10 | Which compounds were used, and how long were reported stints? | stints.compound / reported_span_laps / tyre_age_at_start; spans can overlap. |
 | 11 | How did pace change as tyres aged? | laps + stint ranges require an explicit overlap/unmatched policy first; no misleading many-one join or causal degradation measure. |
-| 12 | Who gained and lost the most recorded position exchanges? | overtakes.row_count with separate overtaking and overtaken entry roles; includes pit/penalty changes and feed limitations. |
-| 13 | How often did drivers retire, fail to start, or get disqualified? | session_result.dnf_count / dns_count / dsq_count; specify denominator and overlapping flags. |
-| 14 | What were peak speeds and sampled throttle/braking patterns? | car_data.maximum_speed_kmh / average_sample_throttle_pct / braking_sample_fraction; choose time window; no elapsed-time claim. |
-| 15 | How did the gaps to the leader evolve? | intervals numeric gap averages plus numeric coverage; preserve +1 LAP labels; explicit time windows. |
-| 16 | What were race weather conditions, and did it rain? | weather average temperatures and rainy_sample_fraction -> sessions; sample statistics, not duration/depth. |
+| 12 | Who gained and lost the most recorded position exchanges? | count overtakes rows with separate overtaking and overtaken entry roles; includes pit/penalty changes and feed limitations. |
+| 13 | How often did drivers retire, fail to start, or get disqualified? | count true session_result.dnf / dns / dsq flags; specify denominator and overlapping flags. |
+| 14 | What were peak speeds and sampled throttle/braking patterns? | max car_data.speed / avg throttle_pct / avg cast(is_braking as int64); choose time window; no elapsed-time claim. |
+| 15 | How did the gaps to the leader evolve? | intervals.interval_seconds and gap_to_leader_seconds averages plus nonnull counts; preserve +1 LAP labels; explicit time windows. |
+| 16 | What were race weather conditions, and did it rain? | weather average temperatures and fraction of known rainfall samples flagged 1 -> sessions; sample statistics, not duration/depth. |
 | 17 | Which flags and race-control messages occurred around an incident? | race_control messages with optional entry/lap joins; explicit time window for other feeds; message count is not incident duration. |
 | 18 | What did drivers say after a difficult race, and what radio clips are available? | transcript_passages -> transcripts -> meetings; read text once per position with speaker labels and source URLs. team_radio -> entries separately; no inferred audio transcript or person link. |
 | 19 | What do racing terms mean, and what did the relevant regulation edition say? | glossary_sections -> glossary or regulation_sections -> regulations; inspect full text blocks and edition/applicability, cite sources, no season-only legal join. |
-| 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status unavailable_scope_count / reported_source_rows for racing coverage; document parent row_count and passage row_count / embedding_ready_count for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
+| 20 | Is an apparent gap missing data or genuinely no recorded events? | sync_status.status / row_count for racing coverage; document parent and passage row counts / embedding validity for document/search coverage. Search misses do not establish absence; use ordinary SQL to inspect text and counts. |
 
 # Query examples
+
+## race_achievements
+
+Question: How many Grand Prix points, wins and podiums did each driver record in 2025?
+
+```sql
+select
+    d.full_name,
+    sum(r.points) as race_points,
+    countif(r.position = 1 and not coalesce(r.dsq, false)) as wins,
+    countif(r.position between 1 and 3 and not coalesce(r.dsq, false)) as podiums
+from `{{ target.database }}.f1.session_result` as r
+join `{{ target.database }}.f1.session_entries` as e
+    on r.session_key = e.session_key and r.driver_number = e.driver_number
+join `{{ target.database }}.f1.drivers` as d on e.driver_id = d.driver_id
+join `{{ target.database }}.f1.sessions` as s on r.session_key = s.session_key
+join `{{ target.database }}.f1.meetings` as m on s.meeting_key = m.meeting_key
+where m.year = 2025 and s.session_name = 'Race'
+group by d.driver_id, d.full_name
+order by race_points desc
+```
 
 ## grid_to_finish
 
@@ -163,12 +182,12 @@ Question: Compare recorded average lap times and pit visits for each race entry.
 -- Aggregate independent facts before combining; joining raw laps to raw pit visits inflates both.
 WITH pace AS (
   SELECT session_key, driver_number,
-    AVG(IF(lap_duration > 0, lap_duration, NULL)) AS average_recorded_lap_seconds,
+    AVG(lap_duration) AS average_recorded_lap_seconds,
     COUNT(*) AS lap_rows
   FROM `{{ target.database }}.f1.laps` GROUP BY 1, 2
 ), stops AS (
   SELECT session_key, driver_number, COUNT(*) AS pit_visits,
-    AVG(IF(stop_duration > 0, stop_duration, NULL)) AS average_stationary_stop_seconds
+    AVG(stop_duration) AS average_stationary_stop_seconds
   FROM `{{ target.database }}.f1.pit` GROUP BY 1, 2
 )
 SELECT e.session_key, e.driver_id, e.team_id, pace.lap_rows,

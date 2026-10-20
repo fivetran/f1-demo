@@ -5,5 +5,7 @@ select
     driver_number,
     session_key,
     gap_to_leader,
-    `interval`
+    `interval`,
+    safe_cast(`interval` as float64) as interval_seconds,
+    safe_cast(gap_to_leader as float64) as gap_to_leader_seconds
 from {{ source('openf1', 'intervals') }}
