@@ -19,14 +19,18 @@ Provisioned on 2026-10-20: service account `f1-github-ci`, Workload Identity poo
 was created.
 
 The production dbt Cloud job is `F1 production build` (1150541), in project 594426
-and environment 491123. Its repository connection now uses `fivetran/f1-demo` with
+and environment 491123. The dbt project subdirectory is empty (repository root).
+Its repository connection now uses `fivetran/f1-demo` with
 a read-only GitHub deploy key. Its sole command is `dbt build --threads 4`, with
 independent triggers disabled and a 3,300-second execution timeout. The environment
 uses `fusion-stable`. The original parse-only validation job remains available.
 
-IAM policies, provider state and GitHub settings were read back successfully.
-End-to-end GitHub OIDC/build/deployment/evaluation is not yet verified: the workflow
-must first be published to `main`.
+Verified end to end on 2026-10-20 in [GitHub run 39510070555, attempt 6](https://github.com/fivetran/f1-demo/actions/runs/39510070555/attempts/6):
+dbt Cloud run 520694522 built the warehouse and published the catalog; GitHub deployed
+the analyst with 30 tables; all 100 evaluations passed (67 structured, 33 unstructured).
+BigQuery contains 100 distinct question results for `github_39510070555_6` at commit
+`3283eb5d4023720627c2b077b4eb03e5b16592bf`. IAM changes needed propagation time before
+the service-account credential exchange succeeded.
 
 ## One-time dbt Cloud setup
 
@@ -36,7 +40,11 @@ must first be published to `main`.
    (local version: 2.0.8). GitHub no longer installs or runs dbt.
 2. Configure dbt Cloud's warehouse identity to read `f1_openf1` and `f1_documents`,
    write `f1` and `agents`, create query jobs, and use the existing embedding connection.
-   Keep Vertex AI access on the connection's service account. Configure these credentials
+   The dbt identity also has project-level `bigquery.connections.create` and
+   `bigquery.datasets.create` for the existing-object setup hooks, plus
+   `bigquery.tables.get` and `bigquery.tables.list` for catalog inspection, through
+   the custom `f1ConnectionCreator` role. Keep Vertex AI access on the connection's
+   service account. Configure these credentials
    in dbt Cloud, separately from GitHub's Google identity.
 3. Create a deploy job with command `dbt build --threads 4`. The existing on-run-end
    hook publishes all four catalog tables. Leave schedules and independent Git triggers
@@ -109,8 +117,12 @@ assertion.workflow_ref == 'fivetran/f1-demo/.github/workflows/analyst.yml@refs/h
    (replace project number and pool ID):
 
 ```text
-principal://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/subject/repo:fivetran/f1-demo:environment:production
+principal://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/subject/repo:fivetran@2722259/f1-demo@1416303040:environment:production
 ```
+
+This repository uses GitHub immutable OIDC subjects. Confirm the subject prefix with
+`gh api repos/fivetran/f1-demo/actions/oidc/customization/sub`; the repository and owner
+IDs above are part of the subject, not just the provider condition.
 
 This permits impersonation only from the production environment; the provider
 condition also limits it to this repository, workflow, and `main`.
