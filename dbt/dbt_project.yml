@@ -14,11 +14,11 @@ models:
       +schema: AGENTS
       +materialized: table
       +tags: [agents_schema]
+    documents:
+      +tags: [document_search]
     openf1:
       +materialized: table
       +tags:
       - normalized_openf1
 on-run-start:
 - '{{ assert_analytics_target() }}'
-on-run-end:
-- '{{ ensure_document_indexes() }}'

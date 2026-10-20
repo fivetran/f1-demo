@@ -963,249 +963,213 @@ from unnest(array<struct<table_name string, column_name string, data_type string
         r"""Wind speed in metres per second."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""document_id""",
         r"""STRING""",
         r"""Stable document identifier; joins a passage to its parent."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""source_url""",
         r"""STRING""",
         r"""Original source URL for citation."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""title""",
         r"""STRING""",
         r"""Source document title."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""published_at""",
         r"""STRING""",
         r"""Source publication timestamp as supplied; not event or effective date."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""meeting_key""",
         r"""INT64""",
         r"""Associated race meeting; join f1.meetings. Not a speaker identity."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""conference_type""",
         r"""STRING""",
         r"""Press-conference type, such as post-race."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""association_method""",
         r"""STRING""",
         r"""Provenance of the transcript-to-meeting association."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
-        r"""_fivetran_deleted""",
-        r"""BOOLEAN""",
-        r"""Exclude true values in both parent and passage tables."""
-    ),
-    (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""document_id""",
         r"""STRING""",
         r"""Stable document identifier; joins a passage to its parent."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""position""",
         r"""INT64""",
         r"""Zero-based passage order within document_id; qualify this column with its table alias."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""text""",
         r"""STRING""",
         r"""Complete source passage. Search this field and read full text for RAG. API truncation affects the embedding only."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""question""",
         r"""STRING""",
         r"""Question providing context for this transcript passage, when available."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""speaker""",
         r"""STRING""",
         r"""Source speaker label, not a resolved driver identity."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""section""",
         r"""STRING""",
         r"""Source heading; not a unique identifier."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
-        r"""_fivetran_deleted""",
-        r"""BOOLEAN""",
-        r"""Exclude true values in both parent and passage tables."""
-    ),
-    (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""document_id""",
         r"""STRING""",
         r"""Stable document identifier; joins a passage to its parent."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""source_url""",
         r"""STRING""",
         r"""Original source URL for citation."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""title""",
         r"""STRING""",
         r"""Source document title."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""published_at""",
         r"""STRING""",
         r"""Source publication timestamp as supplied; not event or effective date."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""applicable_season""",
         r"""INT64""",
         r"""Intended regulation season; alone does not establish applicability."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""rule_family""",
         r"""STRING""",
         r"""Regulation family, such as sporting or technical."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""applicability_status""",
         r"""STRING""",
         r"""Applicability limitation supplied with this source."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""effective_from""",
         r"""STRING""",
         r"""Known effective start date, otherwise null."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""effective_to""",
         r"""STRING""",
         r"""Known effective end date, otherwise null."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
-        r"""_fivetran_deleted""",
-        r"""BOOLEAN""",
-        r"""Exclude true values in both parent and passage tables."""
-    ),
-    (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""document_id""",
         r"""STRING""",
         r"""Stable document identifier; joins a passage to its parent."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""position""",
         r"""INT64""",
         r"""Zero-based passage order within document_id; qualify this column with its table alias."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""text""",
         r"""STRING""",
         r"""Complete source passage. Search this field and read full text for RAG. API truncation affects the embedding only."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""section""",
         r"""STRING""",
         r"""Source heading; not a unique identifier."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""page_number""",
         r"""INT64""",
         r"""One-based starting PDF page of this section."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
-        r"""_fivetran_deleted""",
-        r"""BOOLEAN""",
-        r"""Exclude true values in both parent and passage tables."""
-    ),
-    (
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""document_id""",
         r"""STRING""",
         r"""Stable document identifier; joins a passage to its parent."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""source_url""",
         r"""STRING""",
         r"""Original source URL for citation."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""title""",
         r"""STRING""",
         r"""Source document title."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""applicability_status""",
         r"""STRING""",
         r"""Applicability limitation supplied with this source."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary""",
-        r"""_fivetran_deleted""",
-        r"""BOOLEAN""",
-        r"""Exclude true values in both parent and passage tables."""
-    ),
-    (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""document_id""",
         r"""STRING""",
         r"""Stable document identifier; joins a passage to its parent."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""position""",
         r"""INT64""",
         r"""Zero-based passage order within document_id; qualify this column with its table alias."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""text""",
         r"""STRING""",
         r"""Complete source passage. Search this field and read full text for RAG. API truncation affects the embedding only."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""section""",
         r"""STRING""",
         r"""Source heading; not a unique identifier."""
-    ),
-    (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
-        r"""_fivetran_deleted""",
-        r"""BOOLEAN""",
-        r"""Exclude true values in both parent and passage tables."""
     )
 ])

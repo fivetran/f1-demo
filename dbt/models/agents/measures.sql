@@ -531,55 +531,55 @@ from unnest(array<struct<table_name string, measure_name string, sql_expression 
         r"""Maximum recorded track temperature in degrees Celsius."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""embedding_ready_count""",
         r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
         r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""embedding_ready_count""",
         r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
         r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""row_count""",
         r"""COUNT(*)""",
         r"""Rows at this table grain after excluding deleted rows. Aggregate before one-many joins."""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""embedding_ready_count""",
         r"""COUNTIF(t.embedding.status = '' AND ARRAY_LENGTH(t.embedding.result) = 3072)""",
         r"""Passages available for semantic search; compare to row_count. Missing embeddings are omitted from AI.SEARCH."""

@@ -1,0 +1,20 @@
+version: 2
+models:
+- name: transcript_passages
+  description: One-to-one active source transcript passages with managed embeddings.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns: [document_id, position]
+- name: regulation_sections
+  description: One-to-one active source regulation sections with managed embeddings.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns: [document_id, position]
+- name: glossary_sections
+  description: One-to-one active source glossary sections with managed embeddings.
+  data_tests:
+  - valid_key:
+      arguments:
+        columns: [document_id, position]

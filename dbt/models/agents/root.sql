@@ -7,7 +7,7 @@ select
 
 Start with AGENTS.TABLES, then look up DIMENSIONS, MEASURES and JOINS. AGENTS.ROOT contains one row with provider `user`, key `user`, and this Markdown document. Four dimensional metadata tables describe the finished data. The specification is pinned at https://github.com/dbt-labs/agents_schema/blob/a0bc90498302c8abb15a5e98a54c8c94df5a52f8/SPEC.md. Physical names use canonical uppercase AGENTS; data table names remain lowercase.
 
-The catalog describes the finished query tables in `{{ target.database }}.f1` (racing data) and `{{ target.database }}.f1_documents` (documents). Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All five metadata tables describe data; none copies race measurements or document bodies.
+The catalog describes the finished query tables in `{{ target.database }}.f1`: racing data and native document collections. Use BigQuery Standard SQL. TABLES.table_name is fully qualified; quote it with backticks. A primary_key array states the row grain. It is a validated logical key, not an enforced warehouse constraint. All five metadata tables describe data; none copies race measurements or document bodies.
 
 DIMENSIONS documents every physical column, including numeric observations usable as row-level filters. Merely being numeric does not make a column summable. MEASURES provides the deliberate aggregate expressions and their restrictions. Use alias `t` when applying an aggregate or row_filter. JSON mini-sector arrays remain raw data, not inferred timing measures.
 
@@ -31,7 +31,7 @@ Drivers are people, teams are named team identities, and session_entries assigns
 
 ## Documents
 
-Transcript coverage remains 2025. Search `f1_documents.transcript_passages` for quotes, `f1_documents.regulation_sections` for rules, and `f1_documents.glossary_sections` for definitions. Each collection has its own schema. Join passages to their parent (`transcripts`, `regulations`, or `glossary`) on `document_id` to obtain title, source_url and collection-specific metadata. Join transcripts to `f1.meetings` for race context. Always exclude `_fivetran_deleted` on both passages and parents. Speaker labels are not verified identities.
+Transcript coverage remains 2025. Search `f1.transcript_passages` for quotes, `f1.regulation_sections` for rules, and `f1.glossary_sections` for definitions. Each collection has its own schema. Join passages to their parent (`transcripts`, `regulations`, or `glossary`) on `document_id` to obtain title, source_url and collection-specific metadata. Join transcripts to `f1.meetings` for race context. The document tables contain active source rows; deleted source rows are excluded. Speaker labels are not verified identities.
 
 Read the complete `text` and retrieve neighboring passages ordered by the qualified column `p.position` within a document. Regulation sections follow headings through level three (1.1.1), retaining deeper clauses and page continuations. Section numbers may repeat. Glossary sections follow HTML headings. Publication dates are not event/effective dates; unknown regulation effective dates remain null. Current glossary pages are not historical law.
 
@@ -186,16 +186,13 @@ Question: Explain dirty air and loss of downforce when following another car, us
 select hits.base.document_id, hits.base.position, d.title,
        hits.base.text, d.source_url, hits.distance
 from ai.search(
-    (select p.* from `{{ target.database }}.f1_documents.glossary_sections` p
-     where not coalesce(p._fivetran_deleted, false)
-       and p.document_id in (
-           select d.document_id from `{{ target.database }}.f1_documents.glossary` d
-           where not coalesce(d._fivetran_deleted, false))),
+    (select p.* from `{{ target.database }}.f1.glossary_sections` p
+     where p.document_id in (
+         select d.document_id from `{{ target.database }}.f1.glossary` d)),
     'text', 'dirty air and loss of downforce when following another car', mode => 'HYBRID', top_k => 5
 ) hits
-join `{{ target.database }}.f1_documents.glossary` d
+join `{{ target.database }}.f1.glossary` d
   on hits.base.document_id = d.document_id
-where not coalesce(d._fivetran_deleted, false)
 ```
 
 ## search_regulations
@@ -206,16 +203,13 @@ Question: Find regulations about leaving the track and gaining a lasting advanta
 select hits.base.document_id, hits.base.position, d.title,
        hits.base.text, d.source_url, d.rule_family, d.effective_from, d.effective_to, hits.distance
 from ai.search(
-    (select p.* from `{{ target.database }}.f1_documents.regulation_sections` p
-     where not coalesce(p._fivetran_deleted, false)
-       and p.document_id in (
-           select d.document_id from `{{ target.database }}.f1_documents.regulations` d
-           where not coalesce(d._fivetran_deleted, false))),
+    (select p.* from `{{ target.database }}.f1.regulation_sections` p
+     where p.document_id in (
+         select d.document_id from `{{ target.database }}.f1.regulations` d)),
     'text', 'leaving the track and gaining a lasting advantage', mode => 'HYBRID', top_k => 5
 ) hits
-join `{{ target.database }}.f1_documents.regulations` d
+join `{{ target.database }}.f1.regulations` d
   on hits.base.document_id = d.document_id
-where not coalesce(d._fivetran_deleted, false)
 ```
 
 ## search_transcripts
@@ -226,16 +220,13 @@ Question: Find post-race comments about tyre degradation and managing tyres, wit
 select hits.base.document_id, hits.base.position, d.title,
        hits.base.text, d.source_url, hits.base.speaker, hits.base.question, hits.distance
 from ai.search(
-    (select p.* from `{{ target.database }}.f1_documents.transcript_passages` p
-     where not coalesce(p._fivetran_deleted, false)
-       and p.document_id in (
-           select d.document_id from `{{ target.database }}.f1_documents.transcripts` d
-           where not coalesce(d._fivetran_deleted, false) AND d.conference_type = 'post-race')),
+    (select p.* from `{{ target.database }}.f1.transcript_passages` p
+     where p.document_id in (
+         select d.document_id from `{{ target.database }}.f1.transcripts` d where d.conference_type = 'post-race')),
     'text', 'tyre degradation and managing the tyres during the race', mode => 'HYBRID', top_k => 5
 ) hits
-join `{{ target.database }}.f1_documents.transcripts` d
+join `{{ target.database }}.f1.transcripts` d
   on hits.base.document_id = d.document_id
-where not coalesce(d._fivetran_deleted, false)
 ```
 
 ## transcript_context
@@ -245,12 +236,10 @@ Question: Show original transcript passages mentioning tyres, with their race co
 ```sql
 select p.document_id, d.source_url, d.title, d.conference_type, d.association_method,
        m.meeting_name, p.position, p.speaker, p.question, p.text
-from `{{ target.database }}.f1_documents.transcript_passages` p
-join `{{ target.database }}.f1_documents.transcripts` d on p.document_id = d.document_id
+from `{{ target.database }}.f1.transcript_passages` p
+join `{{ target.database }}.f1.transcripts` d on p.document_id = d.document_id
 left join `{{ target.database }}.f1.meetings` m on d.meeting_key = m.meeting_key
-where not coalesce(p._fivetran_deleted, false)
-  and not coalesce(d._fivetran_deleted, false)
-  and lower(p.text) like '%tyre%'
+where lower(p.text) like '%tyre%'
 order by p.document_id, p.position
 limit 100
 ```

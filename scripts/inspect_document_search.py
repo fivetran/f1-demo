@@ -26,17 +26,16 @@ def main():
               COUNTIF(embedding.status = '' AND ARRAY_LENGTH(embedding.result) = 3072) AS ready,
               COUNTIF(embedding IS NULL OR embedding.status IS NULL) AS pending,
               COUNTIF(embedding.status != '') AS errors
-            FROM `{PROJECT}.f1_documents.{table}`
-            WHERE NOT COALESCE(_fivetran_deleted, FALSE)
+            FROM `{PROJECT}.f1.{table}`
         """ for kind, table in COLLECTIONS.items()),
         "generation": f"""
             SELECT table_name, async_generation_status
-            FROM `{PROJECT}.f1_documents.INFORMATION_SCHEMA.COLUMNS`
+            FROM `{PROJECT}.f1.INFORMATION_SCHEMA.COLUMNS`
             WHERE table_name IN ({tables}) AND column_name = 'embedding'
         """,
         "index": f"""
             SELECT table_name, index_name, index_status, coverage_percentage, last_refresh_time
-            FROM `{PROJECT}.f1_documents.INFORMATION_SCHEMA.VECTOR_INDEXES`
+            FROM `{PROJECT}.f1.INFORMATION_SCHEMA.VECTOR_INDEXES`
             WHERE table_name IN ({tables})
         """,
     }

@@ -300,31 +300,31 @@ from unnest(array<struct<join_name string, from_table string, to_table string, j
     ),
     (
         r"""transcript_passages_to_transcripts""",
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcript_passages""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""many-one""",
         r"""l.document_id = r.document_id""",
-        r"""Join active passages to active parents for metadata and citation URL. Filter _fivetran_deleted on both sides."""
+        r"""Join active passages to active parents for metadata and citation URL."""
     ),
     (
         r"""regulation_sections_to_regulations""",
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulation_sections""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""many-one""",
         r"""l.document_id = r.document_id""",
-        r"""Join active passages to active parents for metadata and citation URL. Filter _fivetran_deleted on both sides."""
+        r"""Join active passages to active parents for metadata and citation URL."""
     ),
     (
         r"""glossary_sections_to_glossary""",
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""many-one""",
         r"""l.document_id = r.document_id""",
-        r"""Join active passages to active parents for metadata and citation URL. Filter _fivetran_deleted on both sides."""
+        r"""Join active passages to active parents for metadata and citation URL."""
     ),
     (
         r"""transcripts_to_meeting""",
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""{{ target.database }}.f1.meetings""",
         r"""many-one""",
         r"""l.meeting_key = r.meeting_key""",

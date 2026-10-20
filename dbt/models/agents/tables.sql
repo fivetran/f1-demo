@@ -147,39 +147,39 @@ from unnest(array<struct<table_name string, description string, primary_key arra
         r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcripts""",
+        r"""{{ target.database }}.f1.transcripts""",
         r"""One press-conference transcript. Join passages by document_id for quotes and meetings by meeting_key for race context. Speaker labels do not identify drivers.""",
         [r"""document_id"""],
-        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+        r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1_documents.transcript_passages""",
+        r"""{{ target.database }}.f1.transcript_passages""",
         r"""One ordered transcript passage, preserving its complete text and speaker/question context. Search text and join transcripts for citations.""",
         [r"""document_id""", r"""position"""],
-        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+        r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulations""",
+        r"""{{ target.database }}.f1.regulations""",
         r"""One regulation edition. Publication date is not its effective date; unknown effective dates remain null.""",
         [r"""document_id"""],
-        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+        r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1_documents.regulation_sections""",
+        r"""{{ target.database }}.f1.regulation_sections""",
         r"""One complete regulation section bounded by numbered headings through level three, retaining deeper clauses and page continuations. Section numbers can repeat in contents and appendices. Join regulations for edition and citations.""",
         [r"""document_id""", r"""position"""],
-        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+        r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary""",
+        r"""{{ target.database }}.f1.glossary""",
         r"""One glossary page. Current definitions are not historical 2025 law.""",
         [r"""document_id"""],
-        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+        r"""TRUE"""
     ),
     (
-        r"""{{ target.database }}.f1_documents.glossary_sections""",
+        r"""{{ target.database }}.f1.glossary_sections""",
         r"""One complete glossary section grouped under its HTML heading. Search text and join glossary for citations.""",
         [r"""document_id""", r"""position"""],
-        r"""NOT COALESCE(t._fivetran_deleted, FALSE)"""
+        r"""TRUE"""
     )
 ])

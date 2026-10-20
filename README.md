@@ -1,6 +1,6 @@
 # F1: from API to agent
 
-Two Fivetran connectors load OpenF1 race data and official documents into BigQuery. dbt builds normalized racing tables, adds managed embeddings and hybrid indexes directly to document source tables through an idempotent DDL hook, and publishes the AGENTS context used by F1 Analyst in Gemini Enterprise.
+Two Fivetran connectors load OpenF1 race data and official documents into BigQuery. dbt builds normalized racing tables and one-to-one document tables with managed embeddings and hybrid indexes, and publishes the AGENTS context used by F1 Analyst in Gemini Enterprise.
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ flowchart LR
 |---|---|
 | Ingestion | [OpenF1 connector](connectors/openf1/) and [documents connector](connectors/documents/); sources stay in `f1_openf1` and `f1_documents`. |
 | Normalization | [dbt models](dbt/models/openf1/) in `f1`: people, teams, session entries, geography and facts at their original grains. |
-| Document search | [Idempotent hook](dbt/macros/document_search.sql) adds embeddings directly to the three source passage tables, with hybrid indexes for sources of at least 5,000 rows. Fivetran maintains the rows; the agent joins parents for metadata and citations. No dbt document models or copies. |
+| Document search | [Native document models](dbt/models/documents/) preserve each collection's schema one-to-one. [Idempotent hooks](dbt/macros/document_search.sql) add embeddings to the three passage tables. Parent metadata stays separate and is joined for citations. |
 | Agent context | [Five inline SQL models](dbt/models/agents/) build `AGENTS.ROOT`, `TABLES`, `DIMENSIONS`, `MEASURES`, `JOINS`. |
 | Experience | [Agent configuration and system prompt](scripts/configure_data_agent.py), published to [Gemini Enterprise](https://vertexaisearch.cloud.google.com/). |
 
