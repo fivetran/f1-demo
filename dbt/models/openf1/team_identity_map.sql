@@ -2,11 +2,9 @@
 with source_teams as (
     select d.session_key, d.team_name
     from {{ source('openf1', 'drivers') }} as d
-
     union distinct
     select standing.session_key, standing.team_name
     from {{ source('openf1', 'championship_teams') }} as standing
-
 )
 select distinct
     s.year as season,

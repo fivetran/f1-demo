@@ -5,5 +5,4 @@ left join {{ source('openf1', 'sessions') }} as s
     on d.session_key = s.session_key
 left join {{ ref('driver_identity_map') }} as identity
     on s.year = identity.season and d.driver_number = identity.driver_number
-
 where (identity.driver_id is null or d.full_name is distinct from identity.source_full_name)

@@ -1,11 +1,11 @@
 {{ config(materialized='table') }}
 
 select
-    s.document_id,
-    s.source_url,
-    s.title,
-    s.published_at,
-    s.meeting_key,
-    s.conference_type,
-    s.association_method
-from {{ source('documents', 'transcripts') }} s
+    document_id,
+    source_url,
+    title,
+    published_at,
+    meeting_key,
+    conference_type,
+    association_method
+from {{ source('documents', 'transcripts') }}

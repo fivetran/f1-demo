@@ -1,8 +1,8 @@
 {{ config(materialized='table') }}
 
 select
-    s.document_id,
-    s.source_url,
-    s.title,
-    s.applicability_status
-from {{ source('documents', 'glossary') }} s
+    document_id,
+    source_url,
+    title,
+    applicability_status
+from {{ source('documents', 'glossary') }}

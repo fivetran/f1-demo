@@ -1,9 +1,9 @@
 select
-    source_row.`date`,
-    source_row.`driver_number`,
-    source_row.`session_key`,
-    source_row.`lane_duration`,
-    source_row.`lap_number`,
-    source_row.`pit_duration`,
-    source_row.`stop_duration`
-from {{ source('openf1', 'pit') }} as source_row
+    date,
+    driver_number,
+    session_key,
+    lane_duration,
+    lap_number,
+    pit_duration,
+    stop_duration
+from {{ source('openf1', 'pit') }}

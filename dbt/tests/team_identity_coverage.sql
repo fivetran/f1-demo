@@ -1,9 +1,7 @@
 with source_teams as (
     select session_key, team_name from {{ source('openf1', 'drivers') }}
-
     union distinct
     select session_key, team_name from {{ source('openf1', 'championship_teams') }}
-
 )
 select d.*
 from source_teams as d

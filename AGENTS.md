@@ -21,6 +21,8 @@ Keep this project small. The user explicitly requested a minimalist implementati
 
 ## Routine work
 
+SQL style: use lowercase keywords, four-space indentation, and one projected column per line. Models without joins must not define table aliases or qualify column references. Use explicit `as` for aliases in models with joins. Quote column names only when SQL syntax requires it. Keep complex expressions readable and avoid redundant blank lines. Preserve SQL examples and literal catalog content when formatting model code. Project only columns with a plausible query use or a required model function; omit ingestion metadata otherwise. The passage models retain `_fivetran_synced` because their incremental watermark depends on it.
+
 Run Fusion from the `dbt` directory, with four threads:
 
 ```sh
@@ -41,7 +43,7 @@ A small run-start hook restricts dbt to this project's `f1` target. It clears hi
 - Normalization keeps one concept and grain per table. Driver standings may lack same-session entries and join people directly; no Qualifying entries are fabricated. Facts preserve source values without rounding, clamping or inferred lap associations. Overtakes include pit-stop/penalty exchanges and may be incomplete; race-control driver references are optional.
 - Preserve all telemetry samples, including pre/post-race timestamps. Fetch car/location data per driver/session; pace OpenF1 calls at least 2.1 seconds apart and do not run competing crawlers. Retry 429/5xx/transient failures.
 - `sync_status` records completed scopes and source availability. `unavailable_404` means unavailable, not zero events. Query completed syncs for consistency.
-- Gaps such as `+1 LAP` remain strings; sector segments remain JSON arrays. Race result duration is scalar. Fivetran renames speed fields to `i_1_speed` and `i_2_speed`. Always qualify projected source columns: bare `position` can resolve to a whole-row STRUCT in BigQuery.
+- Gaps such as `+1 LAP` remain strings; sector segments remain JSON arrays. Race result duration is scalar. Fivetran renames speed fields to `i_1_speed` and `i_2_speed`. In models with joins, qualify projected source columns. In models without joins, leave column references unqualified and verify that `position` resolves to the scalar source column.
 - A refresh generation refetches/upserts OpenF1; it does not remove disappeared rows. An authorized season replacement requires pausing, full resync/empty state, explicit table truncation and resumption. Do not infer deletion reconciliation from an SDK resync alone.
 - Documents have parent and ordered section tables. Changed documents remove obsolete sections; static manifest removals and document-fetch 404/410 remove current documents. Sitemap absence never deletes transcripts, including legacy manifest checkpoints. Download/parse/discovery failures retain previous good documents and fail the sync for retry.
 - The checked [document manifest](connectors/documents/manifest.full.json) contains fixed regulation and glossary URLs. Production `transcript_years` is `2025`: transcripts are discovered from the FIA sitemap every sync, with publication dates resolving yearless URLs and a unique Race session window (four days before through one day after) supplying meeting associations. Discovery metadata persists in SDK state; sitemap lastmod changes trigger reprocessing. Missing/ambiguous race associations fail discovery. Omit `transcript_years` for manifest-only SDK debugging. FIA requests follow robots.txt and a ten-second interval; do not overlap crawlers.
