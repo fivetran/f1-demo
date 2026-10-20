@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 from concurrent.futures import ThreadPoolExecutor
 
 import google.auth
@@ -26,11 +25,11 @@ def main():
         return name, [dict(r) for r in client.query(f"SELECT * FROM `{PROJECT}.agents.{name}`").result()]
 
     with ThreadPoolExecutor(max_workers=5) as pool:
-        catalog = dict(pool.map(read_catalog, ["root", "tables", "columns", "joins"]))
-    if len(catalog["root"]) != 1 or (catalog["root"][0]["provider"], catalog["root"][0]["key"]) != ("user", "user"):
-        raise ValueError("agents.root must contain exactly one user/user row")
+        catalog = dict(pool.map(read_catalog, ["root", "dbt_tables", "dbt_columns", "dbt_joins"]))
+    if len(catalog["root"]) != 1 or (catalog["root"][0]["provider"], catalog["root"][0]["key"]) != ("dbt", ""):
+        raise ValueError("agents.root must contain exactly one row with provider dbt and an empty key")
     guidance = catalog["root"][0]["content"]
-    descriptions = {(r["table_name"], r["column_name"]): r["description"] for r in catalog["columns"]}
+    descriptions = {(r["table_name"], r["column_name"]): r["description"] for r in catalog["dbt_columns"]}
 
     def field_schema(field, table):
         result = dict(name=field.name, type=field.field_type, mode=field.mode,
@@ -50,7 +49,7 @@ def main():
         ))
 
     with ThreadPoolExecutor(max_workers=5) as pool:
-        sources = list(pool.map(table_reference, catalog["tables"]))
+        sources = list(pool.map(table_reference, catalog["dbt_tables"]))
     instructions = (
         "You are F1 Analyst. Answer questions about the loaded Formula 1 seasons. "
         "Use read-only queries; never create, change or delete warehouse objects. "
@@ -70,12 +69,10 @@ def main():
         "Use only the finished tables listed as knowledge sources. "
         "The following context comes from the published AGENTS catalog.\n\n"
         + guidance
-        + "\n\nJoins:\n" + json.dumps(catalog["joins"], ensure_ascii=False)
+        + "\n\nJoins:\n" + json.dumps(catalog["dbt_joins"], ensure_ascii=False)
     )
-    examples = [dict(naturalLanguageQuestion=question.strip(), sqlQuery=sql.strip())
-                for question, sql in re.findall(r"^Question: ([^\n]+)\n\n```sql\n(.*?)\n```", guidance, re.M | re.S)]
     context = dict(systemInstruction=instructions, datasourceReferences={"bq": {"tableReferences": sources}},
-                   exampleQueries=examples, options={"datasource": {"bigQueryMaxBilledBytes": "10000000000"}})
+                   exampleQueries=[], options={"datasource": {"bigQueryMaxBilledBytes": "10000000000"}})
     body = dict(displayName="F1 Analyst", description=(
         "Explore the 2025 and 2026 Formula 1 seasons: drivers, teams, race results, pace, pit stops and telemetry, "
         "plus cited evidence from press conferences, regulations and glossary passages."
@@ -92,7 +89,7 @@ def main():
         }, json=body, timeout=120)
     if not response.ok:
         raise SystemExit(f"Agent setup failed ({response.status_code}): {response.json().get('error', {}).get('message')}")
-    print(json.dumps(dict(name=response.json()["name"], tables=len(sources), example_queries=len(examples))))
+    print(json.dumps(dict(name=response.json()["name"], tables=len(sources), example_queries=0)))
 
 
 if __name__ == "__main__":

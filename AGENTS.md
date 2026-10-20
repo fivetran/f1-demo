@@ -1,14 +1,14 @@
 # F1 project guide
 
-Keep this project small. The user explicitly requested a minimalist implementation on 2026-10-12: prefer direct SQL and a few meaningful checks; do not add exhaustive assertions, fingerprint frameworks, duplicate inspectors or tests for every column. Keep operational instructions here and reader guidance in the [catalog models](dbt/models/agents/).
+Keep this project small. The user explicitly requested a minimalist implementation on 2026-10-12: prefer direct SQL and a few meaningful checks; do not add exhaustive assertions, fingerprint frameworks, duplicate inspectors or tests for every column. Keep operational instructions here and reader guidance in model schema YAML and [ROOT](dbt/macros/publish_agents_catalog.sql).
 
 ## Architecture and boundaries
 
 - Two Fivetran SDK connectors load typed OpenF1 endpoint tables and readable document tables. No generic payload/snapshot architecture.
 - dbt builds the approved [normalized models](dbt/models/openf1/) in `f1`, preserving `f1_openf1` and `f1_documents` as ingestion-owned sources. Driver/team identities are computed models, not seeds.
-- Document models preserve each source collection one-to-one in `f1`. dbt-computed embeddings and BigQuery hybrid indexes live on the three dbt passage tables; parent metadata remains separate. Four inline SQL models build exactly `agents.root`, `tables`, `columns`, `joins`.
+- Document models preserve each source collection one-to-one in `f1`. dbt-computed embeddings and BigQuery hybrid indexes live on the three dbt passage tables; parent metadata remains separate. An on-run-end macro builds exactly `agents.root`, `dbt_tables`, `dbt_columns`, `dbt_joins`.
 - OpenF1 covers 2025 and completed 2026 races; document coverage remains 2025. The authorized season replacement already completed; it is not permission for future truncations. No recurring schedule exists.
-- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. Maintain source YAML directly when connector schemas change; there is no source generator. [The catalog models](dbt/models/agents/) document finished table grains, joins and limitations.
+- Connector declarations and [dbt sources](dbt/models/sources.yml) describe ingestion. Maintain source YAML directly when connector schemas change; there is no source generator. Model schema YAML and [ROOT](dbt/macros/publish_agents_catalog.sql) document finished table grains, joins and limitations.
 
 ## Accounts and tools
 
@@ -29,7 +29,7 @@ Run Fusion from the `dbt` directory, with four threads:
 (cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --threads 4 --no-manage-state)
 ```
 
-Use `--select tag:document_search` or `--select tag:agents_schema` for focused work. `dbt parse` checks project parsing without rebuilding tables. There are no dbt tests; retained Python tests cover connector behavior. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
+Use `--select tag:document_search` for focused document work or `dbt run-operation publish_agents_catalog` for catalog-only publication. `dbt parse` checks project parsing without rebuilding tables. There are no dbt tests; retained Python tests cover connector behavior. Investigate identity collisions rather than choosing arbitrary MAX/latest values. Connector behavior tests are in [tests/test_connectors.py](tests/test_connectors.py); run them when changing connectors.
 
 [run_pipeline.py](scripts/run_pipeline.py) uses [.env.example](.env.example) variables to force Fivetran syncs, wait for success, then run local Fusion. `--wait-existing` waits for an already-started sync.
 
@@ -48,7 +48,7 @@ There is no target-validation or retention-reset hook. Historical expiration set
 - Documents have parent and ordered section tables. Changed documents remove obsolete sections; static manifest removals and document-fetch 404/410 remove current documents. Sitemap absence never deletes transcripts, including legacy manifest checkpoints. Download/parse/discovery failures retain previous good documents and fail the sync for retry.
 - The checked [document manifest](connectors/documents/manifest.full.json) contains fixed regulation and glossary URLs. Production `transcript_years` is `2025`: transcripts are discovered from the FIA sitemap every sync, with publication dates resolving yearless URLs and a unique Race session window (four days before through one day after) supplying meeting associations. Discovery metadata persists in SDK state; sitemap lastmod changes trigger reprocessing. Missing/ambiguous race associations fail discovery. Omit `transcript_years` for manifest-only SDK debugging. FIA requests follow robots.txt and a ten-second interval; do not overlap crawlers.
 - Speaker labels come from markup, not person resolution. Publication dates are not event/effective dates. Unknown regulation effective dates remain null, and current glossary pages are not historical 2025 law.
-- Do not advertise inclusive lap/stint ranges as many-one: observed overlaps make them ambiguous. Independent telemetry feeds need explicit time alignment. Preserve unexpected telemetry codes rather than clamping them. Championship checkpoints are source snapshots, not reconciled race-point facts. Detailed query limitations are in [the catalog models](dbt/models/agents/).
+- Do not advertise inclusive lap/stint ranges as many-one: observed overlaps make them ambiguous. Independent telemetry feeds need explicit time alignment. Preserve unexpected telemetry codes rather than clamping them. Championship checkpoints are source snapshots, not reconciled race-point facts. Detailed query limitations are in model schema YAML and [ROOT](dbt/macros/publish_agents_catalog.sql).
 
 For SDK debugging, use the Singapore example before a full backfill. Config paths resolve from the connector directory; stop the debugger before reading its DuckDB file. Local document caches use `../../.cache/sources`; hosted checkpoints, not caches, prevent repeat downloads.
 
@@ -59,17 +59,21 @@ Deploy from the connector directory with the SDK environment on PATH. OpenF1 use
 AGENTS is **reader guidance for query tables**: meanings, grain, joins, aggregate expressions, query syntax and interpretive limits. It covers 24 finished OpenF1 tables and the six native document tables in `f1` (30 tables). Document parent tables hold metadata and passage tables hold text. Exclude identity lookup models and connector/dbt implementation details. All models include source rows marked `_fivetran_deleted`; do not filter on this flag.
 
 
-Edit the four [SQL models](dbt/models/agents/) directly; they are the source of truth. [root.sql](dbt/models/agents/root.sql) selects one `user`/`user` row with the complete Markdown document in a raw triple-quoted SQL string. The other three models use typed inline rows. COLUMNS contains only table_name, column_name and description; types come from the physical schema. Cleanup belongs in query models, with interpretation and aggregation caveats in column descriptions; TABLES.primary_key is a native ARRAY<STRING>. Keep query examples in ROOT in the `## name`, `Question: ...`, fenced SQL format used by the agent configuration and search inspector.
+Edit [OpenF1 schema.yml](dbt/models/openf1/schema.yml) and [document schema.yml](dbt/models/documents/schema.yml) for table and column descriptions. Models with `config.meta.agent_catalog` are published: this metadata contains `primary_key`, `row_filter` and optional `joins`. Each join is declared on its source model with `name`, `to` (target model name), `relationship`, `sql_expression` (complete predicate using `l` and `r`) and `description`. Retain full predicates, including role filters. Identity lookup models have no catalog metadata and are excluded. Only columns with descriptions are published.
+
+The [publish_agents_catalog macro](dbt/macros/publish_agents_catalog.sql) reads the dbt graph and creates `dbt_tables`, `dbt_columns` and `dbt_joins` in `agents` from this YAML, and ROOT from its inline Markdown block. It runs once at the end of nonempty successful `dbt run` and `dbt build` commands, including focused selections, and publishes all catalog-marked models. It skips parsing, compilation and runs with failed/skipped results. Explicit `dbt run-operation publish_agents_catalog` executes the same publication SQL without rebuilding query models. It describes project metadata; it does not prove that every referenced query table was rebuilt by the current selection. COLUMNS contains only table_name, column_name and description; types come from the physical schema. TABLES.primary_key remains a native ARRAY<STRING>. Cleanup belongs in query models, with interpretation and aggregation caveats in column descriptions.
+
+The `root_content` Jinja block inside [publish_agents_catalog.sql](dbt/macros/publish_agents_catalog.sql) is the source of truth for ROOT Markdown. The macro publishes one row with provider `dbt` and an empty key with that content; there is no ROOT model. Keep ROOT concise: dataset overview and unstructured retrieval guidance only. Table, column and join details belong in schema YAML. The search inspector owns its standalone smoke queries; the analyst context has no example queries.
 
 Build the catalog:
 
 ```sh
-(cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:agents_schema --threads 4 --no-manage-state)
+(cd dbt && python3 ../scripts/with_config.py dbt run-operation publish_agents_catalog --profiles-dir . --no-manage-state)
 ```
 
-Use `{{ target.database }}` in inline table references and Markdown examples. Never put account IDs in tracked SQL. Raw triple-double-quoted strings preserve newlines, single/double quotes and backslashes; do not embed a triple-double-quote delimiter without changing the SQL quoting. The [schema naming macro](dbt/macros/generate_schema_name.sql) maps the custom schema `agents` directly to the `agents` dataset. Other models use dbt's default schema naming. Table names follow lowercase model filenames without alias overrides.
+Catalog table references come from model database/schema/alias metadata. Use `{{ target.database }}` in ROOT Markdown. Never put account IDs in tracked SQL. The Jinja text block preserves Markdown and renders project references; `tojson` escapes the content as a BigQuery string literal. The [schema naming macro](dbt/macros/generate_schema_name.sql) maps the custom schema `agents` directly to the `agents` dataset. Other models use dbt's default schema naming. Table names follow lowercase model filenames without alias overrides.
 
-There are no catalog seeds, generator, staging dependency, or publication hook. Models rebuild as tables and update individually; a failed build can leave a partially updated catalog. Refresh the data agent only after all four models succeed. The obsolete `f1_agents_seed` dataset and its five historical seed tables were deleted on 2026-10-19. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants `agents` dataset WRITER access when bootstrapping.
+There are no catalog seeds, external generator or staging dependency. The end-of-run hook (or explicit run-operation) replaces all four tables individually. Publication is not atomic across the four tables: a hook failure can leave a partially updated catalog. Refresh the data agent only after the complete catalog publication succeeds. The obsolete `f1_agents_seed` dataset and its five historical seed tables were deleted on 2026-10-19. No automatic whole-warehouse validation runs. [configure_agents_access.py](scripts/configure_agents_access.py) grants `agents` dataset WRITER access when bootstrapping.
 
 No BI Engine capacity is required. Queries use the configured billing project and US location.
 
@@ -92,7 +96,7 @@ Regulations group PDF text at numbered headings through level three (1.1.1), ret
 Passage SELECT queries call the dbt-managed [embed_text UDF](dbt/functions/embed_text.sql) through `function('embed_text')`. dbt builds this tagged function before dependent passage models. The UDF calls `AI.EMBED` with `gemini-embedding-2` and returns a normal `ARRAY<FLOAT64>` embedding (3072 dimensions). An unsuccessful status or invalid dimension raises a SQL error before the merge, so the watermark does not advance and a rerun retries the batch. [Idempotent post-hooks](dbt/macros/document_search.sql) only create indexes. At 5,000 rows they create an IVF/COSINE hybrid index with `lexical_search_columns=['text']`. Small tables support hybrid search without index acceleration. Changing embedding models requires deliberately regenerating stored vectors and updating query embeddings; a watermark-only run does not recompute old vectors.
 
 ```sh
-(cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:document_search tag:agents_schema --threads 4 --no-manage-state)
+(cd dbt && python3 ../scripts/with_config.py dbt build --profiles-dir . --select tag:document_search --threads 4 --no-manage-state)
 .venv/bin/python scripts/inspect_document_search.py --query
 ```
 
@@ -100,4 +104,4 @@ The US `f1_document_embeddings` connection service account needs `roles/aiplatfo
 
 Embeddings are computed during the dbt run; index maintenance remains asynchronous. The inspector reports embedding validity and index coverage. The analyst chooses VECTOR_SEARCH for semantic retrieval, SEARCH(text, terms) for keyword matching, or hybrid VECTOR_SEARCH for both. Query embeddings must use gemini-embedding-2. Do not use AI.SEARCH, which requires autonomous embeddings. Join parent metadata by document_id and cite source_url. Matches are evidence, not exhaustive counts. ACTIVE does not establish acceleration; check query statistics.
 
-Refresh the data agent only after all four catalog models succeed. No document search input views or flattened search tables are maintained.
+Refresh the data agent only after the complete catalog publication succeeds. No document search input views or flattened search tables are maintained.

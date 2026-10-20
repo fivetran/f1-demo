@@ -6,406 +6,1100 @@ models:
   columns:
   - name: country_key
     data_type: INT64
+    description: OpenF1 venue-country identifier; a key, never an additive measure.
   - name: country_code
     data_type: STRING
+    description: Source country code. In drivers this is entirely null in the profiled 2025 data; do not infer nationality.
   - name: country_name
     data_type: STRING
+    description: Venue country name.
   - name: country_flag
     data_type: STRING
+    description: Source country flag image reference.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - country_key
+        row_filter: 'TRUE'
 - name: circuits
-  description: One source circuit. Image, information URL and locality use the latest calendar meeting;
-    conflicting identity attributes require investigation.
+  description: One source circuit. Image, information URL and locality describe the latest calendar meeting; these
+    presentation fields are not historical versions of the circuit.
   columns:
   - name: circuit_key
     data_type: INT64
+    description: OpenF1 circuit identifier.
   - name: country_key
     data_type: INT64
+    description: OpenF1 venue-country identifier; a key, never an additive measure.
   - name: circuit_short_name
     data_type: STRING
+    description: Short source circuit name.
   - name: circuit_type
     data_type: STRING
+    description: Source circuit classification, for example permanent or street.
   - name: circuit_image
     data_type: STRING
+    description: Circuit image URL from the latest calendar meeting.
   - name: circuit_info_url
     data_type: STRING
+    description: Circuit information URL from the latest calendar meeting; its season can differ from the race being
+      analyzed.
   - name: location
     data_type: STRING
+    description: Venue locality from the latest calendar meeting; not a telemetry coordinate.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - circuit_key
+        row_filter: 'TRUE'
+        joins:
+        - name: circuits_to_countries
+          to: countries
+          relationship: many-one
+          sql_expression: l.country_key = r.country_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: meetings
   description: One meeting, including testing events. Geography is reached through circuit_key.
   columns:
   - name: meeting_key
     data_type: INT64
+    description: OpenF1 event/weekend identifier; a meeting contains several sessions and may be a testing event.
   - name: circuit_key
     data_type: INT64
+    description: OpenF1 circuit identifier.
   - name: meeting_name
     data_type: STRING
+    description: Short event name.
   - name: meeting_official_name
     data_type: STRING
+    description: Official event name.
   - name: year
     data_type: INT64
+    description: Season year, not a count.
   - name: date_start
     data_type: TIMESTAMP
+    description: Source start timestamp in UTC; session schedule is not a hard boundary for captured observations.
   - name: date_end
     data_type: TIMESTAMP
+    description: Source end timestamp in UTC.
   - name: gmt_offset
     data_type: STRING
+    description: Source local-time offset string; timestamps remain UTC.
   - name: is_cancelled
     data_type: BOOL
+    description: Source cancellation indicator; null is unknown, not an explicit true.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - meeting_key
+        row_filter: 'TRUE'
+        joins:
+        - name: meetings_to_circuits
+          to: circuits
+          relationship: many-one
+          sql_expression: l.circuit_key = r.circuit_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: sessions
   description: One scheduled session. Meeting carries year and circuit; detailed data remains restricted to selected
     Race sessions except grids.
   columns:
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: meeting_key
     data_type: INT64
+    description: OpenF1 event/weekend identifier; a meeting contains several sessions and may be a testing event.
   - name: session_name
     data_type: STRING
+    description: Specific session name. Use exact Race for Grand Prix detail; exclude Sprint and Sprint Qualifying.
+      Count scheduled Grands Prix with COUNTIF(session_name = 'Race' AND NOT COALESCE(is_cancelled, FALSE)); excludes
+      Sprint/testing but can include future races. Verify completed detail using sync_status.
   - name: session_type
     data_type: STRING
+    description: Source session category; session_name is needed to distinguish main Race from Sprint.
   - name: date_start
     data_type: TIMESTAMP
+    description: Source start timestamp in UTC; session schedule is not a hard boundary for captured observations.
   - name: date_end
     data_type: TIMESTAMP
+    description: Source end timestamp in UTC.
   - name: gmt_offset
     data_type: STRING
+    description: Source local-time offset string; timestamps remain UTC.
   - name: is_cancelled
     data_type: BOOL
+    description: Source cancellation indicator; null is unknown, not an explicit true.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        row_filter: 'TRUE'
+        joins:
+        - name: sessions_to_meetings
+          to: meetings
+          relationship: many-one
+          sql_expression: l.meeting_key = r.meeting_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: qualifying_to_race
+          to: sessions
+          relationship: one-one
+          sql_expression: l.meeting_key = r.meeting_key AND l.session_name = 'Qualifying' AND r.session_name = 'Race'
+            AND NOT COALESCE(l.is_cancelled, FALSE) AND NOT COALESCE(r.is_cancelled, FALSE)
+          description: 'Role-playing session join: l is main Qualifying, r is main Race. Excludes Sprint Qualifying.
+            Filter the left input to Qualifying for this path. To compare grids to results, also match grid.driver_id
+            to the Race entry.driver_id; otherwise this path expands to all entrants.'
 - name: drivers
-  description: One person identified by a source-name-derived ID through the computed season/number lookup. Conflicting
-    names require investigation; the headshot is the latest non-null photo by session time. IDs are not a permanent cross-season identity guarantee.
+  description: One person per driver_id. IDs are not guaranteed to identify the same person across spelling changes
+    or future seasons; use session_entries to associate a person with a car number in a session.
   columns:
   - name: driver_id
     data_type: STRING
+    description: Canonical person ID derived from source names; not guaranteed stable across spelling changes or
+      future seasons.
   - name: broadcast_name
     data_type: STRING
+    description: Driver display name used in broadcasts.
   - name: country_code
     data_type: STRING
+    description: Source country code. In drivers this is entirely null in the profiled 2025 data; do not infer nationality.
   - name: first_name
     data_type: STRING
+    description: Source driver given name.
   - name: full_name
     data_type: STRING
+    description: Source driver full display name.
   - name: headshot_url
     data_type: STRING
+    description: Latest non-null driver portrait URL by session time across the loaded seasons.
   - name: last_name
     data_type: STRING
+    description: Source driver surname.
   - name: name_acronym
     data_type: STRING
+    description: Source short driver abbreviation; use driver_id as the join key.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - driver_id
+        row_filter: 'TRUE'
 - name: teams
-  description: One source-name-derived team identity. Session-specific colours are in team_sessions; conflicting
-    names sharing an ID require investigation.
+  description: One team per team_id. Session-specific colours are in team_sessions. Team identity continuity across
+    name changes is not guaranteed.
   columns:
   - name: team_id
     data_type: STRING
+    description: Team ID derived from the source team name; changes of name are not automatically reconciled.
   - name: team_name
     data_type: STRING
+    description: Source team name.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - team_id
+        row_filter: 'TRUE'
 - name: team_sessions
   description: One team appearance per session; preserves the source team colour as observed in that session.
   columns:
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: team_id
     data_type: STRING
+    description: Team ID derived from the source team name; changes of name are not automatically reconciled.
   - name: team_colour
     data_type: STRING
+    description: Source display colour for this team in this session; may vary across the season.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - team_id
+        row_filter: 'TRUE'
+        joins:
+        - name: team_sessions_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: team_sessions_to_teams
+          to: teams
+          relationship: many-one
+          sql_expression: l.team_id = r.team_id
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: team_appearance_to_standings
+          to: team_standings
+          relationship: one-one
+          sql_expression: l.session_key = r.session_key AND l.team_id = r.team_id
+          description: Optional championship checkpoint for a team appearance; LEFT JOIN preserves appearances.
 - name: session_entries
   description: One source driver entry per session and driver number. Team membership and driver identity are explicit;
     no Qualifying entries are fabricated.
   columns:
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: driver_id
     data_type: STRING
+    description: Canonical person ID derived from source names; not guaranteed stable across spelling changes or
+      future seasons. COUNT(DISTINCT driver_id) counts represented people, not race starts; non-additive across
+      races or teams.
   - name: team_id
     data_type: STRING
+    description: Team ID derived from the source team name; changes of name are not automatically reconciled. COUNT(DISTINCT
+      team_id) counts represented teams; non-additive across sessions.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        row_filter: 'TRUE'
+        joins:
+        - name: session_entries_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: session_entries_to_drivers
+          to: drivers
+          relationship: many-one
+          sql_expression: l.driver_id = r.driver_id
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: session_entries_to_team_sessions
+          to: team_sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.team_id = r.team_id
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: entries_to_teams
+          to: teams
+          relationship: many-one
+          sql_expression: l.team_id = r.team_id
+          description: Team membership is determined by this session entry. Do not use a person-to-team mapping
+            across the whole season.
+        - name: entry_to_driver_standings
+          to: driver_standings
+          relationship: one-one
+          sql_expression: l.session_key = r.session_key AND l.driver_id = r.driver_id
+          description: Optional one-to-one lookup for entrants. LEFT JOIN preserves entries; start from standings
+            to retain nonparticipants. Never sum checkpoint points across sessions.
 - name: driver_standings
   description: One driver championship checkpoint per Race session, including drivers who did not enter that race.
-    Points and positions are cumulative, not the race result.
+    Points and positions are cumulative, not the race result. Source checkpoint snapshots may disagree with later
+    classified results; driver checkpoint changes differ from Race result points in 23 profiled 2025 rows.
   columns:
   - name: driver_id
     data_type: STRING
+    description: Canonical person ID derived from source names; not guaranteed stable across spelling changes or
+      future seasons.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: points_current
     data_type: FLOAT64
+    description: Championship points as recorded at this session checkpoint. May reflect a during/post-race state
+      that omits later corrections; never sum across checkpoints. Select exactly one session checkpoint before summing
+      across distinct entities; never sum across checkpoints. Latest means latest by session time, not MAX(points),
+      since adjustments can reduce points. Source snapshots may predate corrections.
   - name: points_start
     data_type: FLOAT64
+    description: Cumulative championship points before this checkpoint. Not race points.
   - name: position_current
     data_type: INT64
+    description: Championship rank as recorded at this session checkpoint, potentially before later corrections;
+      lower is better; not additive. Select one checkpoint and entity to read rank directly; MIN across entities
+      or checkpoints is not a seasonal rank.
   - name: position_start
     data_type: INT64
+    description: Championship rank before this checkpoint; lower is better.
+  - name: points_change
+    description: Recorded before/after checkpoint points difference. Not guaranteed to equal Race result points
+      or cover Sprint points between snapshots; not complete seasonal points earned. Later result corrections may
+      differ.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_id
+        row_filter: 'TRUE'
+        joins:
+        - name: driver_standings_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. Join drivers directly; nonparticipating championship drivers have no
+            same-session entry.
+        - name: driver_standings_to_drivers
+          to: drivers
+          relationship: many-one
+          sql_expression: l.driver_id = r.driver_id
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. Join drivers directly; nonparticipating championship drivers have no
+            same-session entry.
 - name: team_standings
-  description: One team championship checkpoint per Race session.
+  description: One team championship checkpoint per Race session. Source checkpoint snapshots may disagree with
+    later classified results; driver checkpoint changes differ from Race result points in 23 profiled 2025 rows.
   columns:
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: team_id
     data_type: STRING
+    description: Team ID derived from the source team name; changes of name are not automatically reconciled.
   - name: points_current
     data_type: FLOAT64
+    description: Championship points as recorded at this session checkpoint. May reflect a during/post-race state
+      that omits later corrections; never sum across checkpoints. Select exactly one session checkpoint before summing
+      across distinct entities; never sum across checkpoints. Latest means latest by session time, not MAX(points),
+      since adjustments can reduce points. Source snapshots may predate corrections.
   - name: points_start
     data_type: FLOAT64
+    description: Cumulative championship points before this checkpoint. Not race points.
   - name: position_current
     data_type: INT64
+    description: Championship rank as recorded at this session checkpoint, potentially before later corrections;
+      lower is better; not additive. Select one checkpoint and entity to read rank directly; MIN across entities
+      or checkpoints is not a seasonal rank.
   - name: position_start
     data_type: INT64
+    description: Championship rank before this checkpoint; lower is better.
+  - name: points_change
+    description: Recorded before/after checkpoint points difference. Not guaranteed to equal Race result points
+      or cover Sprint points between snapshots; not complete seasonal points earned. Later result corrections may
+      differ.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - team_id
+        row_filter: 'TRUE'
+        joins:
+        - name: team_standings_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: team_standings_to_teams
+          to: teams
+          relationship: many-one
+          sql_expression: l.team_id = r.team_id
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: starting_grid
   description: One driver grid record per main Qualifying session. Join to Race via meeting_key through sessions,
     never by equating Race and Qualifying keys. Preserves qualifying lap_duration.
   columns:
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: driver_id
     data_type: STRING
+    description: Canonical person ID derived from source names; not guaranteed stable across spelling changes or
+      future seasons.
   - name: lap_duration
     data_type: FLOAT64
+    description: Source lap duration in seconds. Null means unavailable/incomplete, not zero. Null means missing,
+      not zero; COUNT of this column gives timing coverage compared with COUNT(*). Supplied on the Qualifying-keyed
+      grid; not a complete qualifying-lap history.
   - name: position
     data_type: INT64
+    description: Position in the OpenF1 grid published under main Qualifying. Do not assume it incorporates every
+      later grid penalty or pit-lane start. AVG is mean source qualifying-grid position; later penalties and pit-lane
+      starts may differ.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_id
+        row_filter: 'TRUE'
+        joins:
+        - name: starting_grid_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. This session is Qualifying, never the Race session; the driver join
+            uses canonical identity.
+        - name: starting_grid_to_drivers
+          to: drivers
+          relationship: many-one
+          sql_expression: l.driver_id = r.driver_id
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. This session is Qualifying, never the Race session; the driver join
+            uses canonical identity.
 - name: car_data
   description: One driver/session telemetry sample at its source timestamp. Pre/post-race samples are retained.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: brake
     data_type: INT64
+    description: Raw brake code. Documented 0=not pressed and 100=pressed; 1,160,081 profiled 2025 samples contain
+      undocumented 104. Preserve those values but do not silently decode 104 as pressed. Use is_braking for decoded
+      sample statistics.
   - name: drs
     data_type: INT64
+    description: Raw DRS code, not a Boolean. Observed codes include undocumented 11,13,15 as well as known and
+      uncertain codes. No automatic activation-time measure is offered.
   - name: n_gear
     data_type: INT64
+    description: Raw gear code. Documented range is 0 (neutral) to 8; 474 profiled 2025 samples exceed 8, including
+      within scheduled Race windows. Do not interpret those codes as real extra gears. Use is_known_gear to identify
+      undocumented samples.
   - name: rpm
     data_type: INT64
+    description: Engine revolutions per minute at the sample.
   - name: speed
     data_type: INT64
+    description: Instantaneous speed in km/h. MAX gives peak sampled speed; AVG is sample-weighted, not lap speed
+      or distance divided by elapsed time. Choose an observation window; pre/post-race samples are included.
   - name: throttle
     data_type: INT64
+    description: Raw source throttle percentage. Observed range is 0..104 with 1,157,156 profiled 2025 values above
+      100. Range-filtered means exclude and report these samples; do not silently clamp them. Use throttle_pct for
+      documented-range aggregates.
+  - name: is_braking
+    description: 'Decoded brake state: false for raw 0, true for raw 100, null for unknown codes or missing values.
+      AVG(CAST(is_braking AS INT64)) is the braking fraction among known samples, not elapsed braking time. Report
+      COUNT(is_braking) alongside COUNT(*) for coverage.'
+  - name: is_known_gear
+    description: Whether the raw gear code lies in the documented 0..8 range; null when missing. False identifies
+      an undocumented code, not a physical extra gear.
+  - name: throttle_pct
+    description: Throttle percentage in the documented 0..100 range; other raw codes become null. AVG is sample-weighted,
+      not time at full throttle. Report COUNT(throttle_pct) alongside COUNT(*) for coverage.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - date
+        row_filter: 'TRUE'
+        joins:
+        - name: car_data_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: intervals
   description: One timestamped gap observation. Gap strings preserve labels such as +1 LAP.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: gap_to_leader
     data_type: STRING
+    description: 'Source gap string: seconds or labels such as +1 LAP. Preserve labels; SAFE_CAST only parses numeric
+      gaps.'
   - name: interval
     data_type: STRING
+    description: 'Source gap to the car ahead: numeric seconds or lap/status labels. Null is not zero.'
+  - name: gap_to_leader_seconds
+    description: Numeric gap to the leader in seconds; null for lap/status labels or missing values. Raw gap_to_leader
+      preserves labels. AVG is sample-weighted over numeric observations only; report COUNT(gap_to_leader_seconds)
+      alongside COUNT(*) because exclusions can bias comparisons.
+  - name: interval_seconds
+    description: Numeric gap to the car ahead in seconds; null for lap/status labels or missing values. Raw interval
+      preserves labels. AVG is sample-weighted over numeric observations only; report COUNT(interval_seconds) alongside
+      COUNT(*) because exclusions can bias comparisons.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - date
+        row_filter: 'TRUE'
+        joins:
+        - name: intervals_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: laps
   description: One entry lap. Incomplete timings and JSON sector segment arrays are preserved; no inferred weather/telemetry
     joins.
   columns:
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: lap_number
     data_type: INT64
+    description: Lap ordinal within a driver/session; not an elapsed count to sum.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: date_start
     data_type: TIMESTAMP
+    description: Source lap start timestamp in UTC; may be null for incomplete observations.
   - name: duration_sector_1
     data_type: FLOAT64
+    description: Sector 1 duration in seconds; null means unavailable. Null means missing, not zero; COUNT of this
+      column gives timing coverage compared with COUNT(*). Select comparable laps before pace analysis; pit and
+      safety-car effects remain. Best sectors may come from different laps, so their sum is theoretical. Minimum
+      lap duration is not automatically an official fastest-lap award.
   - name: duration_sector_2
     data_type: FLOAT64
+    description: Sector 2 duration in seconds; null means unavailable. Null means missing, not zero; COUNT of this
+      column gives timing coverage compared with COUNT(*). Select comparable laps before pace analysis; pit and
+      safety-car effects remain. Best sectors may come from different laps, so their sum is theoretical. Minimum
+      lap duration is not automatically an official fastest-lap award.
   - name: duration_sector_3
     data_type: FLOAT64
+    description: Sector 3 duration in seconds; null means unavailable. Null means missing, not zero; COUNT of this
+      column gives timing coverage compared with COUNT(*). Select comparable laps before pace analysis; pit and
+      safety-car effects remain. Best sectors may come from different laps, so their sum is theoretical. Minimum
+      lap duration is not automatically an official fastest-lap award.
   - name: i_1_speed
     data_type: INT64
+    description: Speed at intermediate trap 1 in km/h. MAX gives the highest recorded trap speed, not average lap
+      speed.
   - name: i_2_speed
     data_type: INT64
+    description: Speed at intermediate trap 2 in km/h. MAX gives the highest recorded trap speed, not average lap
+      speed.
   - name: is_pit_out_lap
     data_type: BOOL
+    description: Source pit-out-lap flag. It does not identify all pit-in or safety-car laps. COUNTIF counts marked
+      laps, not stationary pit stops.
   - name: lap_duration
     data_type: FLOAT64
+    description: Source lap duration in seconds. Null means unavailable/incomplete, not zero. Null means missing,
+      not zero; COUNT of this column gives timing coverage compared with COUNT(*). Select comparable laps before
+      pace analysis; pit and safety-car effects remain. Best sectors may come from different laps, so their sum
+      is theoretical. Minimum lap duration is not automatically an official fastest-lap award.
   - name: segments_sector_1
     data_type: JSON
+    description: JSON array of source mini-sector status codes for sector 1; not durations.
   - name: segments_sector_2
     data_type: JSON
+    description: JSON array of source mini-sector status codes for sector 2; not durations.
   - name: segments_sector_3
     data_type: JSON
+    description: JSON array of source mini-sector status codes for sector 3; not durations.
   - name: st_speed
     data_type: INT64
+    description: Speed-trap speed in km/h. MAX gives the highest recorded trap speed, not average lap speed.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - lap_number
+        row_filter: 'TRUE'
+        joins:
+        - name: laps_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: location
   description: One driver/session location sample at its source timestamp. Sampling differs from car_data; no timestamp
     equality is assumed.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: x
     data_type: INT64
+    description: Source approximate X coordinate in a local track reference system; not longitude.
   - name: y
     data_type: INT64
+    description: Source approximate Y coordinate in a local track reference system; not latitude.
   - name: z
     data_type: INT64
+    description: Source approximate Z coordinate; do not assume precise surveyed elevation or derive distance without
+      validation.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - date
+        row_filter: 'TRUE'
+        joins:
+        - name: location_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: overtakes
   description: One source position exchange between two session entries. Includes pit-stop and penalty changes,
     not exclusively on-track passes; feed may be incomplete.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: overtaken_driver_number
     data_type: INT64
+    description: Session-scoped number of the driver losing the position; use the overtaken role join.
   - name: overtaking_driver_number
     data_type: INT64
+    description: Session-scoped number of the driver gaining the position; use the overtaking role join.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: position
     data_type: INT64
+    description: Source position associated with the recorded exchange; not a count of passes.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - date
+        - overtaking_driver_number
+        - overtaken_driver_number
+        row_filter: 'TRUE'
+        joins:
+        - name: overtakes_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. For entry joins preserve the overtaking/overtaken role, with a separate
+            alias and driver lookup for each.
+        - name: overtakes_to_session_entries_overtaking
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.overtaking_driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. For entry joins preserve the overtaking/overtaken role, with a separate
+            alias and driver lookup for each.
+        - name: overtakes_to_session_entries_overtaken
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.overtaken_driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data. For entry joins preserve the overtaking/overtaken role, with a separate
+            alias and driver lookup for each.
 - name: pit
-  description: One pit-lane event. Lane duration, source pit_duration and stationary stop_duration remain distinct.
+  description: One pit-lane event, keyed by session, driver number and timestamp. lane_duration includes transit;
+    pit_duration is its deprecated alias, verified equal in all profiled 2025 rows. Stationary stop_duration is
+    available for 702 of 821 profiled 2025 events; a missing value does not establish a drive-through.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: lane_duration
     data_type: FLOAT64
+    description: Time in the pit lane, seconds; includes travel and a stop when present. Null means missing, not
+      zero; COUNT of this column gives timing coverage compared with COUNT(*). Keep lane transit and stationary
+      stop separate; neither measures causal race time lost to a pit strategy.
   - name: lap_number
     data_type: INT64
+    description: Lap ordinal within a driver/session; not an elapsed count to sum.
   - name: pit_duration
     data_type: FLOAT64
+    description: Deprecated source alias for lane_duration (seconds). All 821 profiled 2025 rows agree exactly.
+      Prefer lane_duration; never add these two columns together.
   - name: stop_duration
     data_type: FLOAT64
+    description: Stationary pit-stop duration in seconds; null does not prove there was no stop. Null means missing,
+      not zero; COUNT of this column gives timing coverage compared with COUNT(*). Keep lane transit and stationary
+      stop separate; neither measures causal race time lost to a pit strategy.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - date
+        row_filter: 'TRUE'
+        joins:
+        - name: pit_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: pit_to_lap
+          to: laps
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number AND l.lap_number =
+            r.lap_number
+          description: 'Optional source lap reference; LEFT JOIN retains pit events lacking a lap. Multiple pit
+            events can refer to one lap: lap measures would be repeated.'
 - name: position
   description: One running-order observation per driver entry and source timestamp.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: position
     data_type: INT64
+    description: Running-order rank at this observation; not final classified position or elapsed time in rank.
+      MIN is best sampled running rank, not finishing rank. Observation counts do not measure laps or time led.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - date
+        row_filter: 'TRUE'
+        joins:
+        - name: position_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: race_control
-  description: One timestamped race-control message. Driver reference is optional. message_id preserves the connector
-    hash of the full source message.
+  description: One timestamped race-control message. Driver reference is optional; message_id identifies a message
+    within a session.
   columns:
   - name: message_id
     data_type: STRING
+    description: Opaque message identifier, unique together with session_key. It is not an incident identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: category
     data_type: STRING
+    description: Source race-control message category.
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: flag
     data_type: STRING
+    description: Source flag code, when present. COUNT(flag) counts messages carrying flags, not distinct incidents
+      or safety-car/red-flag durations; reconstruct event intervals first.
   - name: lap_number
     data_type: INT64
+    description: Lap ordinal within a driver/session; not an elapsed count to sum.
   - name: message
     data_type: STRING
+    description: Verbatim race-control message. Messages are not automatically distinct incidents or penalties.
   - name: qualifying_phase
     data_type: STRING
+    description: Source qualifying phase, when present; current detailed coverage is Race.
   - name: scope
     data_type: STRING
+    description: Source scope label; interpretation is specific to this table.
   - name: sector
     data_type: INT64
+    description: Source sector number when the message is sector-scoped.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - message_id
+        row_filter: 'TRUE'
+        joins:
+        - name: race_control_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
+        - name: race_control_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: 'Use the complete predicate; cardinality is from l to r. Optional reference: use LEFT JOIN
+            to retain null/unmatched rows.'
+        - name: race_control_to_lap
+          to: laps
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number AND l.lap_number =
+            r.lap_number
+          description: Optional exact driver/lap reference only. LEFT JOIN retains global or unmatched messages.
+            Does not label every lap affected by the message.
 - name: session_result
   description: One Race result per driver entry. Finish position, race points, laps completed and DNS/DNF/DSQ indicators
     are preserved.
   columns:
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: dnf
     data_type: BOOL
+    description: Source did-not-finish flag; independent of DNS/DSQ. COUNTIF counts explicitly flagged results;
+      null is not counted.
   - name: dns
     data_type: BOOL
+    description: Source did-not-start flag; an entry does not necessarily imply a race start. COUNTIF counts explicitly
+      flagged results; entries are not necessarily starts.
   - name: dsq
     data_type: BOOL
+    description: Source disqualification flag. COUNTIF counts explicitly flagged results. Classification flags can
+      overlap.
   - name: duration
     data_type: FLOAT64
+    description: Source Race result duration in seconds; do not treat as a lap duration. Comparisons and averages
+      require comparable race lengths and classifications; not a sum of lap samples.
   - name: gap_to_leader
     data_type: STRING
+    description: 'Source gap string: seconds or labels such as +1 LAP. Preserve labels; SAFE_CAST only parses numeric
+      gaps.'
   - name: number_of_laps
     data_type: INT64
+    description: Completed laps reported in the session result, distinct from lap rows with partial timing. SUM
+      across drivers is driver-laps, not the race distance.
   - name: position
     data_type: INT64
+    description: Final classified Race position; lower is better. Use DNF/DNS/DSQ flags separately. Wins have position
+      = 1 and podiums position BETWEEN 1 AND 3, excluding DSQ; the catalog convention treats null DSQ as not flagged.
+      AVG is mean available classified rank; state treatment of DNS/DNF/DSQ.
   - name: points
     data_type: FLOAT64
+    description: Points awarded in this Grand Prix result. Summable across drivers/races, but excludes Sprint points.
+      SUM is additive across entries and races. Sprint points are excluded, so this need not equal championship
+      totals.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        row_filter: 'TRUE'
+        joins:
+        - name: session_result_to_session_entries
+          to: session_entries
+          relationship: one-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: stints
   description: One tyre stint per driver entry; lap bounds and tyre age are preserved.
   columns:
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: stint_number
     data_type: INT64
+    description: Source tyre-stint ordinal within an entry.
   - name: compound
     data_type: STRING
+    description: Source tyre compound label.
   - name: lap_end
     data_type: INT64
+    description: Source inclusive last lap of the stint; may be missing. Do not assume nonoverlapping ranges.
   - name: lap_start
     data_type: INT64
+    description: Source inclusive first lap of the stint. Boundaries can overlap adjacent stints.
   - name: tyre_age_at_start
     data_type: INT64
+    description: Tyre age in laps at stint start, including prior use; not the stint length. AVG describes starting
+      tyre age, not total tyre life.
+  - name: reported_span_laps
+    description: 'Inclusive reported stint span in laps; null for missing or reversed bounds. Spans overlap: do
+      not sum as distinct laps or infer a many-one lap join. AVG describes reported spans, not total tyre life.'
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - stint_number
+        row_filter: 'TRUE'
+        joins:
+        - name: stints_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: team_radio
   description: One radio recording per driver entry, timestamp and recording URL. Audio is referenced, not transcribed.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: recording_url
     data_type: STRING
+    description: Audio recording URL. No audio transcript is stored in this table.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - driver_number
+        - date
+        - recording_url
+        row_filter: 'TRUE'
+        joins:
+        - name: team_radio_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: weather
   description: One session weather observation per source timestamp. No driver reference.
   columns:
   - name: date
     data_type: TIMESTAMP
+    description: Source observation/event timestamp in UTC. Different feeds have independent sampling clocks.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: air_temperature
     data_type: FLOAT64
+    description: Ambient air temperature in degrees Celsius. AVG is sample-weighted, not time-weighted. Weather
+      observations are session-level and independent of driver sample clocks.
   - name: humidity
     data_type: FLOAT64
+    description: Relative humidity percent. AVG is sample-weighted, not time-weighted. Weather observations are
+      session-level and independent of driver sample clocks.
   - name: pressure
     data_type: FLOAT64
+    description: Air pressure in mbar. AVG is sample-weighted, not time-weighted. Weather observations are session-level
+      and independent of driver sample clocks.
   - name: rainfall
     data_type: INT64
+    description: Source rainfall indicator (0/1); not precipitation depth or duration. SAFE_DIVIDE(COUNTIF(rainfall
+      = 1), COUNT(rainfall)) is the fraction of nonnull samples flagged as rain, not elapsed rainy time.
   - name: track_temperature
     data_type: FLOAT64
+    description: Track surface temperature in degrees Celsius. AVG is sample-weighted, not time-weighted. Weather
+      observations are session-level and independent of driver sample clocks.
   - name: wind_direction
     data_type: INT64
+    description: Wind direction in degrees; circular, so ordinary arithmetic means are misleading.
   - name: wind_speed
     data_type: FLOAT64
+    description: Wind speed in metres per second. AVG is sample-weighted, not time-weighted. Weather observations
+      are session-level and independent of driver sample clocks.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - session_key
+        - date
+        row_filter: 'TRUE'
+        joins:
+        - name: weather_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: Use the complete predicate; cardinality is from l to r. At most one target per source row;
+            validated against current data.
 - name: sync_status
-  description: Operational request coverage at endpoint/scope grain. Metadata scopes have no session; HTTP 404 is
-    unavailable, not zero activity.
+  description: Data availability by endpoint and scope. Use this to distinguish unavailable detail from zero recorded
+    events. Metadata scopes have no session; HTTP 404 means unavailable.
   columns:
   - name: endpoint
     data_type: STRING
+    description: OpenF1 endpoint for this request scope.
   - name: scope
     data_type: STRING
+    description: Coverage identifier for metadata, a session, or a driver within a session, depending on endpoint.
   - name: session_key
     data_type: INT64
+    description: OpenF1 session identifier. Race and Qualifying have different keys even within one meeting.
   - name: driver_number
     data_type: INT64
+    description: Car number scoped to a session entry; never a permanent person identifier.
   - name: status
     data_type: STRING
+    description: Source retrieval/availability status. Missing/unavailable data is not evidence of zero events.
   - name: row_count
     data_type: INT64
+    description: Source row count for one completed request scope; compare within an endpoint, not across unrelated
+      grains. Sum only disjoint completed scopes within one endpoint; different endpoints have incompatible grains.
+      Not a total count of F1 events.
   - name: completed_at
     data_type: TIMESTAMP
+    description: Availability timestamp for this scope; not event time or evidence that every scope is current.
+      MAX is the latest selected completion; other scopes may be older or unavailable.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - endpoint
+        - scope
+        row_filter: 'TRUE'
+        joins:
+        - name: sync_status_to_sessions
+          to: sessions
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key
+          description: 'Use the complete predicate; cardinality is from l to r. Optional reference: use LEFT JOIN
+            to retain null/unmatched rows.'
+        - name: sync_status_to_session_entries
+          to: session_entries
+          relationship: many-one
+          sql_expression: l.session_key = r.session_key AND l.driver_number = r.driver_number
+          description: 'Use the complete predicate; cardinality is from l to r. Optional reference: use LEFT JOIN
+            to retain null/unmatched rows.'
 - name: driver_identity_map
   description: Computed season/number/name-to-person lookup from active driver entries and sessions. IDs use normalized
     first/last names. Ambiguous season/number mappings, multiple numbers/names per person in a season, and conflicting

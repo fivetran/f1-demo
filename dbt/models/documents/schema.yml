@@ -1,8 +1,180 @@
 version: 2
 models:
 - name: transcript_passages
-  description: One-to-one source transcript passages with embeddings computed during the incremental load.
+  description: One ordered transcript passage, preserving its complete text and speaker/question context. Search
+    text and join transcripts for citations.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - document_id
+        - position
+        row_filter: 'TRUE'
+        joins:
+        - name: transcript_passages_to_transcripts
+          to: transcripts
+          relationship: many-one
+          sql_expression: l.document_id = r.document_id
+          description: Join active passages to active parents for metadata and citation URL.
+  columns:
+  - name: document_id
+    description: Stable document identifier; joins a passage to its parent.
+  - name: position
+    description: Zero-based passage order within document_id; qualify this column with its table alias.
+  - name: question
+    description: Question providing context for this transcript passage, when available.
+  - name: section
+    description: Source heading; not a unique identifier.
+  - name: speaker
+    description: Source speaker label, not a resolved driver identity.
+  - name: text
+    description: Complete source passage. Search this field and read full text for RAG. API truncation affects the
+      embedding only.
+  - name: embedding
+    description: Gemini Embedding 2 semantic vector, ARRAY<FLOAT64> with 3072 elements. Use matching query embeddings
+      for vector/hybrid search. Invalid new vectors fail the model load; matches are evidence, not exhaustive counts.
+  - name: _fivetran_synced
+    description: Source synchronization timestamp retained as the incremental update watermark; not the document
+      publication or event time.
 - name: regulation_sections
-  description: One-to-one source regulation sections with embeddings computed during the incremental load.
+  description: One complete regulation section bounded by numbered headings through level three, retaining deeper
+    clauses and page continuations. Section numbers can repeat in contents and appendices. Join regulations for
+    edition and citations.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - document_id
+        - position
+        row_filter: 'TRUE'
+        joins:
+        - name: regulation_sections_to_regulations
+          to: regulations
+          relationship: many-one
+          sql_expression: l.document_id = r.document_id
+          description: Join active passages to active parents for metadata and citation URL.
+  columns:
+  - name: document_id
+    description: Stable document identifier; joins a passage to its parent.
+  - name: page_number
+    description: One-based starting PDF page of this section.
+  - name: position
+    description: Zero-based passage order within document_id; qualify this column with its table alias.
+  - name: section
+    description: Source heading; not a unique identifier.
+  - name: text
+    description: Complete source passage. Search this field and read full text for RAG. API truncation affects the
+      embedding only.
+  - name: embedding
+    description: Gemini Embedding 2 semantic vector, ARRAY<FLOAT64> with 3072 elements. Use matching query embeddings
+      for vector/hybrid search. Invalid new vectors fail the model load; matches are evidence, not exhaustive counts.
+  - name: _fivetran_synced
+    description: Source synchronization timestamp retained as the incremental update watermark; not the document
+      publication or event time.
 - name: glossary_sections
-  description: One-to-one source glossary sections with embeddings computed during the incremental load.
+  description: One complete glossary section grouped under its HTML heading. Search text and join glossary for citations.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - document_id
+        - position
+        row_filter: 'TRUE'
+        joins:
+        - name: glossary_sections_to_glossary
+          to: glossary
+          relationship: many-one
+          sql_expression: l.document_id = r.document_id
+          description: Join active passages to active parents for metadata and citation URL.
+  columns:
+  - name: document_id
+    description: Stable document identifier; joins a passage to its parent.
+  - name: position
+    description: Zero-based passage order within document_id; qualify this column with its table alias.
+  - name: section
+    description: Source heading; not a unique identifier.
+  - name: text
+    description: Complete source passage. Search this field and read full text for RAG. API truncation affects the
+      embedding only.
+  - name: embedding
+    description: Gemini Embedding 2 semantic vector, ARRAY<FLOAT64> with 3072 elements. Use matching query embeddings
+      for vector/hybrid search. Invalid new vectors fail the model load; matches are evidence, not exhaustive counts.
+  - name: _fivetran_synced
+    description: Source synchronization timestamp retained as the incremental update watermark; not the document
+      publication or event time.
+- name: transcripts
+  description: One press-conference transcript. Join passages by document_id for quotes and meetings by meeting_key
+    for race context. Speaker labels do not identify drivers.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - document_id
+        row_filter: 'TRUE'
+        joins:
+        - name: transcripts_to_meeting
+          to: meetings
+          relationship: many-one
+          sql_expression: l.meeting_key = r.meeting_key
+          description: LEFT JOIN preserves unmatched transcripts. This association does not resolve speakers to
+            drivers.
+  columns:
+  - name: association_method
+    description: Provenance of the transcript-to-meeting association.
+  - name: conference_type
+    description: Press-conference type, such as post-race.
+  - name: document_id
+    description: Stable document identifier; joins a passage to its parent.
+  - name: meeting_key
+    description: Associated race meeting; join f1.meetings. Not a speaker identity.
+  - name: published_at
+    description: Source publication timestamp as supplied; not event or effective date.
+  - name: source_url
+    description: Original source URL for citation.
+  - name: title
+    description: Source document title.
+- name: regulations
+  description: One regulation edition. Publication date is not its effective date; unknown effective dates remain
+    null.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - document_id
+        row_filter: 'TRUE'
+  columns:
+  - name: applicability_status
+    description: Applicability limitation supplied with this source.
+  - name: applicable_season
+    description: Intended regulation season; alone does not establish applicability.
+  - name: document_id
+    description: Stable document identifier; joins a passage to its parent.
+  - name: effective_from
+    description: Known effective start date, otherwise null.
+  - name: effective_to
+    description: Known effective end date, otherwise null.
+  - name: published_at
+    description: Source publication timestamp as supplied; not event or effective date.
+  - name: rule_family
+    description: Regulation family, such as sporting or technical.
+  - name: source_url
+    description: Original source URL for citation.
+  - name: title
+    description: Source document title.
+- name: glossary
+  description: One glossary page. Current definitions are not historical 2025 law.
+  config:
+    meta:
+      agent_catalog:
+        primary_key:
+        - document_id
+        row_filter: 'TRUE'
+  columns:
+  - name: applicability_status
+    description: Applicability limitation supplied with this source.
+  - name: document_id
+    description: Stable document identifier; joins a passage to its parent.
+  - name: source_url
+    description: Original source URL for citation.
+  - name: title
+    description: Source document title.

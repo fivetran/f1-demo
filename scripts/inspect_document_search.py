@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-import re
 
 from google.cloud import bigquery
 from local_config import load_config
@@ -12,6 +11,52 @@ load_config()
 
 PROJECT = os.environ["F1_GCP_PROJECT"]
 COLLECTIONS = {"transcript": "transcript_passages", "regulation": "regulation_sections", "glossary": "glossary_sections"}
+
+
+# Standalone smoke queries; ROOT contains only reader guidance.
+SEARCH_QUERIES = {
+    "search_transcripts": f"""
+select hits.base.document_id, hits.base.position, d.title,
+       hits.base.text, d.source_url, hits.base.speaker, hits.base.question, hits.distance
+from vector_search(
+    (select p.* from `{PROJECT}.f1.transcript_passages` p
+     where p.document_id in (
+         select d.document_id from `{PROJECT}.f1.transcripts` d where d.conference_type = 'post-race')),
+    'embedding',
+    query_value => ai.embed('tyre degradation and managing the tyres during the race',
+        endpoint => 'gemini-embedding-2').result,
+    lexical_search_columns => ['text'],
+    lexical_search_query_value => 'tyre degradation and managing the tyres during the race',
+    distance_type => 'COSINE', top_k => 5
+) hits
+join `{PROJECT}.f1.transcripts` d
+  on hits.base.document_id = d.document_id
+""",
+    "search_regulations": f"""
+select p.document_id, p.position, d.title, p.section,
+       p.text, d.source_url, d.rule_family, d.effective_from, d.effective_to
+from `{PROJECT}.f1.regulation_sections` p
+join `{PROJECT}.f1.regulations` d on p.document_id = d.document_id
+where search(p.text, 'lasting advantage')
+order by p.document_id, p.position
+limit 20
+""",
+    "search_glossary": f"""
+select hits.base.document_id, hits.base.position, d.title,
+       hits.base.text, d.source_url, hits.distance
+from vector_search(
+    (select p.* from `{PROJECT}.f1.glossary_sections` p
+     where p.document_id in (
+         select d.document_id from `{PROJECT}.f1.glossary` d)),
+    'embedding',
+    query_value => ai.embed('dirty air and loss of downforce when following another car',
+        endpoint => 'gemini-embedding-2').result,
+    distance_type => 'COSINE', top_k => 5
+) hits
+join `{PROJECT}.f1.glossary` d
+  on hits.base.document_id = d.document_id
+""",
+}
 
 
 def main():
@@ -36,11 +81,7 @@ def main():
     for name, sql in queries.items():
         print(name + ": " + json.dumps([dict(r) for r in client.query(sql).result()], default=str))
     if args.query:
-        guidance = next(iter(client.query(
-            f"SELECT content FROM `{PROJECT}.agents.root` WHERE provider = 'user' AND key = 'user'"
-        ).result()))["content"]
-        for example in ("search_transcripts", "search_regulations", "search_glossary"):
-            sql = re.search(rf"^## {example}\n.*?```sql\n(.*?)\n```", guidance, re.M | re.S).group(1)
+        for example, sql in SEARCH_QUERIES.items():
             job = client.query(sql, job_config=bigquery.QueryJobConfig(use_query_cache=False))
             rows = [dict(row) for row in job.result()]
             job.reload()

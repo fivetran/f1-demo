@@ -10,10 +10,6 @@ function-paths:
 - functions
 models:
   f1_demo:
-    agents:
-      +schema: agents
-      +materialized: table
-      +tags: [agents_schema]
     documents:
       +tags: [document_search]
     openf1:
@@ -21,6 +17,6 @@ models:
       +tags:
       - normalized_openf1
 on-run-start:
-- >-
-    create connection if not exists `{{ target.database }}.us.f1_document_embeddings`
-    options (connection_type = "CLOUD_RESOURCE", friendly_name = "F1 document embeddings")
+- "{{ ensure_document_connection() }}"
+on-run-end:
+- "{{ publish_agents_catalog() }}"
