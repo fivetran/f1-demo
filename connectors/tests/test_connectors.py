@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load(name):
-    spec = importlib.util.spec_from_file_location(name, ROOT / "connectors" / name / "connector.py")
+    spec = importlib.util.spec_from_file_location(name, ROOT / name / "connector.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
@@ -359,6 +359,31 @@ def test_transcript_discovery_dates_metadata_and_sitemap_refresh(monkeypatch):
         m.discover_transcripts(fetcher, {2025}, state)
 
 
+@pytest.mark.parametrize("current_year", [2026, 2027])
+@pytest.mark.parametrize("settings", [
+    {"transcript_start_year": "2025"},
+    {"transcript_years": "2026,2025"},
+    {"transcript_start_year": "2025", "transcript_years": "2024"},
+])
+def test_transcript_start_year_includes_new_years(monkeypatch, tmp_path, current_year, settings):
+    m = load('documents')
+    manifest = tmp_path / 'manifest.json'
+    manifest.write_text('[]')
+
+    class Clock:
+        @staticmethod
+        def now(tz):
+            return datetime(current_year, 1, 1, tzinfo=tz)
+
+    discovered = []
+    monkeypatch.setattr(m, 'datetime', Clock)
+    monkeypatch.setattr(m, 'discover_transcripts',
+                        lambda fetcher, years, state: discovered.append(years) or [])
+    monkeypatch.setattr(m.op, 'checkpoint', lambda s: None)
+    m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), **settings), {})
+    assert discovered == [set(range(2025, current_year + 1))]
+
+
 def test_sitemap_absence_preserves_legacy_transcripts_but_static_removal_deletes(monkeypatch, tmp_path):
     m = load('documents')
     manifest = tmp_path / 'manifest.json'
@@ -371,7 +396,7 @@ def test_sitemap_absence_preserves_legacy_transcripts_but_static_removal_deletes
     deleted = []
     monkeypatch.setattr(m.op, 'delete', lambda **kw: deleted.append(kw))
     monkeypatch.setattr(m.op, 'checkpoint', lambda s: None)
-    m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_years='2025'), state)
+    m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_start_year='2025'), state)
     assert set(state['documents']) == {'transcript'}
     assert [d['table'] for d in deleted] == ['regulation_sections', 'regulations', 'fetch_status']
 
@@ -388,7 +413,7 @@ def test_discovery_failure_does_not_delete_or_checkpoint(monkeypatch, tmp_path):
     monkeypatch.setattr(m.op, 'delete', lambda **kw: events.append(kw))
     monkeypatch.setattr(m.op, 'checkpoint', lambda s: events.append(s))
     with pytest.raises(RuntimeError, match='sitemap unavailable'):
-        m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_years='2025'), state)
+        m.update(dict(manifest_path=str(manifest), cache_dir=str(tmp_path), transcript_start_year='2025'), state)
     assert not events and 'old' in state['documents']
 
 

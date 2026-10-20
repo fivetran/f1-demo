@@ -2,5 +2,5 @@
   "manifest_path": "manifest.full.json",
   "cache_dir": ".cache",
   "refresh": "false",
-  "transcript_years": "2025"
+  "transcript_start_year": "2025"
 }

@@ -2,8 +2,8 @@
 version: 2
 sources:
 - name: openf1
-  database: '{{ env_var(''F1_GCP_PROJECT'', ''__F1_GCP_PROJECT__'') }}'
-  schema: '{{ env_var(''F1_OPENF1_DATASET'', ''f1_openf1'') }}'
+  database: '{{ target.database }}'
+  schema: f1_openf1
   tables:
   - name: car_data
   - name: championship_drivers
@@ -25,8 +25,8 @@ sources:
   - name: weather
   - name: sync_status
 - name: documents
-  database: '{{ env_var(''F1_GCP_PROJECT'', ''__F1_GCP_PROJECT__'') }}'
-  schema: '{{ env_var(''F1_DOCUMENTS_DATASET'', ''f1_documents'') }}'
+  database: '{{ target.database }}'
+  schema: f1_documents
   tables:
   - name: transcripts
   - name: transcript_passages

@@ -2,6 +2,7 @@
 .cache/
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 *.pyc
 .env
 configuration.json
@@ -18,13 +19,11 @@ dbt/.user.yml
 
 .presentation-edit/
 
-# Local account settings, backups, and deployment evidence
+# Local settings and private files
 .local/
 .env.*
-!.env.example
 *.pem
 *.key
-/infra/deployment.json
 /inventory/
 /presentation/
 /logs/

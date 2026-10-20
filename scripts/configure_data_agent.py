@@ -1,17 +1,13 @@
 """Create or refresh F1 Analyst from the published AGENTS catalog (Google ADC)."""
 
 import json
-import os
 from concurrent.futures import ThreadPoolExecutor
 
 import google.auth
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import bigquery
-from local_config import load_config
 
-load_config()
-
-PROJECT = os.environ["F1_GCP_PROJECT"]
+PROJECT = 'fivetran-f1-demo-20261008'
 PARENT = f"projects/{PROJECT}/locations/us"
 NAME = f"{PARENT}/dataAgents/f1-analyst"
 API = "https://geminidataanalytics.us.rep.googleapis.com/v1beta"

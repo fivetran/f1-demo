@@ -53,7 +53,7 @@
 
     {% set root_content %}# F1 dataset
 
-`{{ target.database }}.f1` contains Formula 1 racing data for 2025 and completed 2026 Grands Prix, plus 2025 press-conference transcripts and regulations and current glossary pages. Racing tables cover calendars, circuits, drivers and teams, race entries and results, championship checkpoints, qualifying grids, laps, pit stops, stints, telemetry, weather, race control and radio links. Detailed racing facts cover main races; calendar metadata also includes other session types.
+`{{ target.database }}.f1` contains Formula 1 racing data for 2025 and completed 2026 Grands Prix, press-conference transcripts from 2025 onward, 2025 regulations and current glossary pages. Verify available transcript coverage by publication date and race association. Racing tables cover calendars, circuits, drivers and teams, race entries and results, championship checkpoints, qualifying grids, laps, pit stops, stints, telemetry, weather, race control and radio links. Detailed racing facts cover main races; calendar metadata also includes other session types.
 
 Use BigQuery Standard SQL. Consult `agents.dbt_tables` for table scope and grain, `agents.dbt_columns` for field meanings and limitations, and `agents.dbt_joins` for complete join predicates. Filter or group by season when comparing racing data.
 

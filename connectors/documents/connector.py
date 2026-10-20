@@ -433,9 +433,13 @@ def update(configuration, state):
         raise ValueError("New table layout requires a fresh connection/state")
     state["schema_version"] = 2
     completed = state.setdefault("documents", {})
-    discovery = bool(configuration.get("transcript_years"))
+    start_year = configuration.get("transcript_start_year")
+    if not start_year and configuration.get("transcript_years"):
+        # Accept deployed legacy configurations, using the earliest year as the start.
+        start_year = min(int(year.strip()) for year in configuration["transcript_years"].split(","))
+    discovery = bool(start_year)
     if discovery:
-        years = {int(year.strip()) for year in configuration["transcript_years"].split(",")}
+        years = set(range(int(start_year), datetime.now(timezone.utc).year + 1))
         manifest += discover_transcripts(fetcher, years, state)
     failures = []
     urls = {item["url"] for item in manifest}
